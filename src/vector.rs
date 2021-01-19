@@ -3,8 +3,13 @@ use std::marker::PhantomData;
 use crate::basis::Basis;
 use crate::element::SquaredElement;
 
-#[derive(Debug)]
 pub struct Vector<B: Basis>(PhantomData<B>, pub usize);
+
+impl<B: Basis> std::fmt::Debug for Vector<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        f.debug_struct("Vector").field("index", &self.1).finish()
+    }
+}
 
 impl<B: Basis> Clone for Vector<B> {
     fn clone(&self) -> Self {
