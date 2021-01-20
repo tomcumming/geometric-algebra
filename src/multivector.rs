@@ -27,7 +27,7 @@ impl<B: Basis> MultiVector<B> {
             .flat_map(|(lhs_elem, lhs_sym)| {
                 rhs.0.iter().map(move |(rhs_elem, rhs_sym)| {
                     let sym = lhs_sym.clone().mult(rhs_sym);
-                    match lhs_elem.mult(rhs_elem) {
+                    match &lhs_elem * rhs_elem {
                         SimplifiedElement::Zero => MultiVector::<B>(BTreeMap::new()),
                         SimplifiedElement::Positive(elem) => {
                             MultiVector(vec![(elem, sym)].into_iter().collect())

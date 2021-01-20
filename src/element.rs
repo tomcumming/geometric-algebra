@@ -91,8 +91,22 @@ impl<B: Basis> SimplifiedElement<B> {
     }
 }
 
+impl<'a, B: Basis> std::ops::Mul for &'a Element<B> {
+    type Output = SimplifiedElement<B>;
+
+    fn mul(self, rhs: &Element<B>) -> SimplifiedElement<B> {
+        let mut elems: Vec<Vector<B>> = self.0.iter().cloned().collect();
+        elems.reverse();
+
+        elems.into_iter().fold(
+            SimplifiedElement::Positive(Element(rhs.0.clone())),
+            |prev, curr| prev.then(|es| es.multiply_vector_left(curr)),
+        )
+    }
+}
+
 impl<B: Basis> Element<B> {
-    fn mul_left(self, left: Vector<B>) -> SimplifiedElement<B> {
+    fn multiply_vector_left(self, left: Vector<B>) -> SimplifiedElement<B> {
         let Element(mut vs) = self;
         match vs.pop_first() {
             None => SimplifiedElement::Positive(Element(vec![left].into_iter().collect())),
@@ -107,22 +121,12 @@ impl<B: Basis> Element<B> {
                     SquaredElement::One => SimplifiedElement::Positive(Element(vs)),
                     SquaredElement::MinusOne => SimplifiedElement::Negative(Element(vs)),
                 },
-                Ordering::Less => Element(vs).mul_left(left).then(|mut es| {
+                Ordering::Less => Element(vs).multiply_vector_left(left).then(|mut es| {
                     es.0.insert(first_v);
                     SimplifiedElement::Negative(es) // causes a flip
                 }),
             },
         }
-    }
-
-    pub fn mult(&self, rhs: &Element<B>) -> SimplifiedElement<B> {
-        let mut elems: Vec<Vector<B>> = self.0.iter().cloned().collect();
-        elems.reverse();
-
-        elems.into_iter().fold(
-            SimplifiedElement::Positive(Element(rhs.0.clone())),
-            |prev, curr| prev.then(|es| es.mul_left(curr)),
-        )
     }
 }
 
