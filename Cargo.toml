@@ -1,4 +1,5 @@
-[package]
-edition = '2018'
-name = 'ga'
-version = '0.0.1'
+[workspace]
+
+members = [
+    "symbolic-ga",
+]
