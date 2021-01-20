@@ -10,7 +10,7 @@ pub enum SquaredElement {
     MinusOne,
 }
 
-pub struct Element<B: Basis>(BTreeSet<Vector<B>>);
+pub struct Element<B: Basis>(pub BTreeSet<Vector<B>>);
 
 impl<B: Basis> std::fmt::Debug for Element<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
