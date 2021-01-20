@@ -71,7 +71,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_simple_mult_symbol_powers() {
+    fn test_simple_multiply_symbol_powers() {
         let lhs: SymbolPowers = vec![("x".to_string(), 2), ("y".to_string(), 3)]
             .into_iter()
             .collect();
@@ -80,7 +80,7 @@ mod tests {
             .collect();
 
         assert_eq!(
-            mult_symbol_powers(&lhs, &rhs),
+            multiply_symbol_powers(&lhs, &rhs),
             vec![
                 ("x".to_string(), 2),
                 ("y".to_string(), 3 + 4),
@@ -122,6 +122,6 @@ mod tests {
             .collect(),
         );
 
-        assert_eq!(lhs.mult(&rhs), expected);
+        assert_eq!(&lhs * &rhs, expected);
     }
 }

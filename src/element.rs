@@ -154,12 +154,12 @@ mod tests {
         let e2 = Vector::<OneTwoOne>::from_index(2).unwrap();
 
         let e2: Element<OneTwoOne> = e2.into();
-        let e12 = e2.mul_left(e1);
+        let e12 = e2.multiply_vector_left(e1);
 
         match e12 {
             SimplifiedElement::Positive(e12) => {
                 assert_eq!(
-                    e12.mult(&e12),
+                    &e12 * &e12,
                     SimplifiedElement::Negative(Element(BTreeSet::new()))
                 );
             }
@@ -176,12 +176,12 @@ mod tests {
         let e1: Element<OneTwoOne> = e1.into();
         let e2: Element<OneTwoOne> = e2.into();
 
-        let e01 = e1.mul_left(e0);
-        let e02 = e2.mul_left(e0);
+        let e01 = e1.multiply_vector_left(e0);
+        let e02 = e2.multiply_vector_left(e0);
 
         match (e01, e02) {
             (SimplifiedElement::Positive(e01), SimplifiedElement::Positive(e02)) => {
-                assert_eq!(e01.mult(&e02), SimplifiedElement::Zero,);
+                assert_eq!(&e01 * &e02, SimplifiedElement::Zero,);
             }
             _ => panic!("Could not construct bivectors"),
         }
