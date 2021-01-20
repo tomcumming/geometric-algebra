@@ -2,4 +2,6 @@
 
 members = [
     "symbolic-ga",
+    "macro-ga",
+    "macro-ga-logic"
 ]
