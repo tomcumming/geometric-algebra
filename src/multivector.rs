@@ -26,7 +26,7 @@ impl<B: Basis> MultiVector<B> {
             .into_iter()
             .flat_map(|(lhs_elem, lhs_sym)| {
                 rhs.0.iter().map(move |(rhs_elem, rhs_sym)| {
-                    let sym = lhs_sym.clone().mult(rhs_sym);
+                    let sym = &lhs_sym * rhs_sym;
                     match &lhs_elem * rhs_elem {
                         SimplifiedElement::Zero => MultiVector::<B>(BTreeMap::new()),
                         SimplifiedElement::Positive(elem) => {
@@ -51,7 +51,7 @@ impl<B: Basis> MultiVector<B> {
                     .0
                     .remove(&elem)
                     .unwrap_or_else(|| Symbols(BTreeMap::new()));
-                let sum = existing.add_syms(sym);
+                let sum = existing + sym;
                 if !sum.0.is_empty() {
                     prev.0.insert(elem, sum);
                 }

@@ -7,25 +7,42 @@ pub type SymbolPowers = BTreeMap<Symbol, usize>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbols(pub BTreeMap<SymbolPowers, f32>);
 
-impl Symbols {
-    pub fn mult(self, Symbols(rhs_powers): &Symbols) -> Symbols {
+impl<'a> std::ops::Mul for &'a Symbols {
+    type Output = Symbols;
+
+    fn mul(self, Symbols(rhs_powers): &Symbols) -> Symbols {
         let Symbols(lhs_powers) = self;
         lhs_powers
             .iter()
             .flat_map(|(lhs_power, lhs_scale)| {
                 rhs_powers.iter().map(move |(rhs_power, rhs_scale)| {
                     (
-                        mult_symbol_powers(lhs_power, &rhs_power),
+                        multiply_symbol_powers(lhs_power, &rhs_power),
                         lhs_scale * rhs_scale,
                     )
                 })
             })
             .fold(Symbols(BTreeMap::new()), |prev, (pwr, scale)| {
-                prev.add_power(scale, pwr)
+                prev.add_scaled_power(scale, pwr)
             })
     }
+}
 
-    fn add_power(mut self, scale: f32, power: SymbolPowers) -> Symbols {
+impl std::ops::Add for Symbols {
+    type Output = Symbols;
+
+    fn add(self, rhs: Symbols) -> Symbols {
+        self.0
+            .into_iter()
+            .chain(rhs.0.into_iter())
+            .fold(Symbols(BTreeMap::new()), |prev, (pows, scale)| {
+                prev.add_scaled_power(scale, pows)
+            })
+    }
+}
+
+impl Symbols {
+    fn add_scaled_power(mut self, scale: f32, power: SymbolPowers) -> Symbols {
         let existing = self.0.remove(&power).unwrap_or(0.0);
         let sum = existing + scale;
         if sum != 0.0 {
@@ -34,23 +51,12 @@ impl Symbols {
         self
     }
 
-    pub fn invert(self) -> Self {
-        self.mult(&Symbols(
-            vec![(BTreeMap::new(), -1.0)].into_iter().collect(),
-        ))
-    }
-
-    pub fn add_syms(self, rhs: Self) -> Self {
-        self.0
-            .into_iter()
-            .chain(rhs.0.into_iter())
-            .fold(Symbols(BTreeMap::new()), |prev, (pows, scale)| {
-                prev.add_power(scale, pows)
-            })
+    pub fn invert(&self) -> Self {
+        self * &Symbols(vec![(BTreeMap::new(), -1.0)].into_iter().collect())
     }
 }
 
-fn mult_symbol_powers(lhs: &SymbolPowers, rhs: &SymbolPowers) -> SymbolPowers {
+fn multiply_symbol_powers(lhs: &SymbolPowers, rhs: &SymbolPowers) -> SymbolPowers {
     lhs.iter()
         .chain(rhs.iter())
         .fold(BTreeMap::new(), |mut prev, (sym, pow)| {
