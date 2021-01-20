@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ops::Add;
 
 use crate::basis::Basis;
 use crate::element::{Element, SimplifiedElement};
@@ -20,14 +21,16 @@ impl<B: Basis> PartialEq for MultiVector<B> {
     }
 }
 
-impl<B: Basis> MultiVector<B> {
-    pub fn mult(self, rhs: &MultiVector<B>) -> MultiVector<B> {
+impl<'a, B: Basis> std::ops::Mul for &'a MultiVector<B> {
+    type Output = MultiVector<B>;
+
+    fn mul(self, rhs: &MultiVector<B>) -> MultiVector<B> {
         self.0
-            .into_iter()
+            .iter()
             .flat_map(|(lhs_elem, lhs_sym)| {
                 rhs.0.iter().map(move |(rhs_elem, rhs_sym)| {
-                    let sym = &lhs_sym * rhs_sym;
-                    match &lhs_elem * rhs_elem {
+                    let sym = lhs_sym * rhs_sym;
+                    match lhs_elem * rhs_elem {
                         SimplifiedElement::Zero => MultiVector::<B>(BTreeMap::new()),
                         SimplifiedElement::Positive(elem) => {
                             MultiVector(vec![(elem, sym)].into_iter().collect())
@@ -39,11 +42,15 @@ impl<B: Basis> MultiVector<B> {
                 })
             })
             .fold(MultiVector::<B>(BTreeMap::new()), |prev, curr| {
-                prev.add_mv(curr)
+                prev.add(curr)
             })
     }
+}
 
-    pub fn add_mv(self, rhs: MultiVector<B>) -> MultiVector<B> {
+impl<B: Basis> Add for MultiVector<B> {
+    type Output = MultiVector<B>;
+
+    fn add(self, rhs: MultiVector<B>) -> MultiVector<B> {
         self.0.into_iter().chain(rhs.0.into_iter()).fold(
             MultiVector::<B>(BTreeMap::new()),
             |mut prev, (elem, sym)| {
@@ -154,6 +161,6 @@ mod tests {
             .collect(),
         );
 
-        assert_eq!(lhs.mult(&rhs), expected);
+        assert_eq!(&lhs * &rhs, expected);
     }
 }
