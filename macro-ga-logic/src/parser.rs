@@ -25,6 +25,10 @@ impl Parser {
         match next_token {
             TokenTree::Literal(l) => parse_constant(l.to_string()),
             TokenTree::Ident(i) => Ok(parse_ident(i.to_string())),
+            TokenTree::Punct(p) if p.as_char() == '-' => {
+                let e = self.parse_operand()?;
+                Ok(Expr::Mul(Box::new(Expr::Constant(-1.0)), Box::new(e)))
+            }
             token => Err(format!("Unexpected token '{}'", token)),
         }
     }
@@ -42,8 +46,6 @@ fn parse_ident(name: String) -> Expr {
 
 #[cfg(test)]
 mod tests {
-    use proc_macro2::Literal;
-
     use super::*;
 
     #[test]
@@ -72,18 +74,30 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_symbols() -> Result<(), String> {
+    fn test_parse_symbols() {
         let mut parser = Parser::from_tokens(TokenStream::from_str("你好 World").unwrap());
 
         for expected in ["你好", "World"].iter() {
-            match parser.parse_operand()? {
+            match parser.parse_operand().unwrap() {
                 Expr::Symbol(s) => {
                     assert_eq!(s.as_str(), *expected);
                 }
-                _ => return Err("Parsed something other than constant".to_string()),
+                _ => panic!("Parsed something other than constant"),
             };
         }
+    }
 
-        Ok(())
+    #[test]
+    fn test_parse_negated_number() {
+        let mut parser = Parser::from_tokens(TokenStream::from_str("-123").unwrap());
+
+        let e = parser.parse_operand().unwrap();
+        assert_eq!(
+            e,
+            Expr::Mul(
+                Box::new(Expr::Constant(-1.0)),
+                Box::new(Expr::Constant(123.0))
+            )
+        );
     }
 }

@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Element(usize),
     Symbol(String),
