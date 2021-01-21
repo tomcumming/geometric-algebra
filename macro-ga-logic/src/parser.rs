@@ -95,7 +95,30 @@ fn parse_constant(literal: String) -> Result<Expr, String> {
 }
 
 fn parse_ident(name: String) -> Expr {
-    Expr::Symbol(name)
+    try_parse_element(&name).unwrap_or(Expr::Symbol(name))
+}
+
+fn try_parse_element(name: &str) -> Option<Expr> {
+    let mut iter = name.chars();
+    if let Some('e') = iter.next() {
+        let number_part: String = iter.take_while(|c| c.is_digit(10)).collect();
+        if !number_part.is_empty() && (number_part == "0" || !number_part.starts_with('0')) {
+            let idx = usize::from_str(&number_part).expect("Could not parse usize vector base");
+            let rest = &name[number_part.len() + 1..];
+            if rest.is_empty() {
+                Some(Expr::Vector(idx))
+            } else {
+                Some(Expr::Mul(
+                    Box::new(Expr::Vector(idx)),
+                    Box::new(try_parse_element(rest)?),
+                ))
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -230,6 +253,30 @@ mod tests {
                         Box::new(Expr::Constant(2.0)),
                     )),
                     Box::new(Expr::Constant(3.0)),
+                ),
+            ),
+        ];
+
+        for (src, expected) in examples.iter() {
+            let mut parser = Parser::from_tokens(TokenStream::from_str(src).unwrap());
+            let e: Expr = parser.parse_expression().unwrap().into();
+            assert_eq!(&e, expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_base_elements() {
+        let examples = [
+            ("e0", Expr::Vector(0)),
+            ("e1", Expr::Vector(1)),
+            (
+                "e2e1e0",
+                Expr::Mul(
+                    Box::new(Expr::Vector(2)),
+                    Box::new(Expr::Mul(
+                        Box::new(Expr::Vector(1)),
+                        Box::new(Expr::Vector(0)),
+                    )),
                 ),
             ),
         ];
