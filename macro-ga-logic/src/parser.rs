@@ -29,7 +29,23 @@ impl Parser {
                 let e = self.parse_operand()?;
                 Ok(Expr::Mul(Box::new(Expr::Constant(-1.0)), Box::new(e)))
             }
-            token => Err(format!("Unexpected token '{}'", token)),
+            token => Err(format!("Unexpected token in operand '{}'", token)),
+        }
+    }
+
+    pub fn parse_expression(&mut self) -> Result<Expr, String> {
+        let lhs = self.parse_operand()?;
+
+        match self.tokens.peek() {
+            None => Ok(lhs),
+            Some(token) => match token {
+                TokenTree::Punct(p) if p.as_char() == '+' => {
+                    self.tokens.next(); // skip the + token
+                    let rhs = self.parse_expression()?;
+                    Ok(Expr::Add(Box::new(lhs), Box::new(rhs)))
+                }
+                token => Err(format!("Unexpected token in expression '{}'", token)),
+            },
         }
     }
 }
@@ -75,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_parse_symbols() {
-        let mut parser = Parser::from_tokens(TokenStream::from_str("你好 World").unwrap());
+        let mut parser = Parser::from_tokens(TokenStream::from_str("你好   World").unwrap());
 
         for expected in ["你好", "World"].iter() {
             match parser.parse_operand().unwrap() {
@@ -97,6 +113,23 @@ mod tests {
             Expr::Mul(
                 Box::new(Expr::Constant(-1.0)),
                 Box::new(Expr::Constant(123.0))
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_simple_addition() {
+        let mut parser = Parser::from_tokens(TokenStream::from_str("1 + 2 +   3").unwrap());
+
+        let e = parser.parse_expression().unwrap();
+        assert_eq!(
+            e,
+            Expr::Add(
+                Box::new(Expr::Constant(1.0)),
+                Box::new(Expr::Add(
+                    Box::new(Expr::Constant(2.0)),
+                    Box::new(Expr::Constant(3.0))
+                ))
             )
         );
     }
