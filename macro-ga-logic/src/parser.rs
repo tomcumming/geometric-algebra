@@ -69,6 +69,19 @@ impl Parser {
                         Box::new(rhs),
                     )))
                 }
+                TokenTree::Punct(p) if p.as_char() == '*' => {
+                    self.tokens.next(); // skip the * token
+                    match self.parse_expression()? {
+                        // Need to perform a rotation if rhs is a naked Add
+                        ParsedExpr::Naked(Expr::Add(add_lhs, add_rhs)) => Ok(ParsedExpr::Naked(
+                            Expr::Add(Box::new(Expr::Mul(Box::new(lhs.into()), add_lhs)), add_rhs),
+                        )),
+                        rhs => Ok(ParsedExpr::Naked(Expr::Mul(
+                            Box::new(lhs.into()),
+                            Box::new(rhs.into()),
+                        ))),
+                    }
+                }
                 token => Err(format!("Unexpected token in expression '{}'", token)),
             },
         }
