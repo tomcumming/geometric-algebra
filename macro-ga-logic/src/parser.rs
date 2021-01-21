@@ -175,4 +175,56 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn test_parse_multiplication() {
+        let examples = [
+            (
+                "1 * 2 + 3",
+                Expr::Add(
+                    Box::new(Expr::Mul(
+                        Box::new(Expr::Constant(1.0)),
+                        Box::new(Expr::Constant(2.0)),
+                    )),
+                    Box::new(Expr::Constant(3.0)),
+                ),
+            ),
+            (
+                "1 * (2 + 3)",
+                Expr::Mul(
+                    Box::new(Expr::Constant(1.0)),
+                    Box::new(Expr::Add(
+                        Box::new(Expr::Constant(2.0)),
+                        Box::new(Expr::Constant(3.0)),
+                    )),
+                ),
+            ),
+            (
+                "1 + 2 * 3",
+                Expr::Add(
+                    Box::new(Expr::Constant(1.0)),
+                    Box::new(Expr::Mul(
+                        Box::new(Expr::Constant(2.0)),
+                        Box::new(Expr::Constant(3.0)),
+                    )),
+                ),
+            ),
+            (
+                "(1 + 2) * 3",
+                Expr::Mul(
+                    Box::new(Expr::Add(
+                        Box::new(Expr::Constant(1.0)),
+                        Box::new(Expr::Constant(2.0)),
+                    )),
+                    Box::new(Expr::Constant(3.0)),
+                ),
+            ),
+        ];
+
+        for (src, expected) in examples.iter() {
+            let mut parser = Parser::from_tokens(TokenStream::from_str(src).unwrap());
+            let e: Expr = parser.parse_expression().unwrap().into();
+            assert_eq!(&e, expected);
+        }
+    }
 }
