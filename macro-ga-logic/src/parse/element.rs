@@ -4,7 +4,7 @@ use std::str::FromStr;
 pub type VectorIndex = usize;
 
 #[derive(Debug, PartialEq)]
-pub struct Element(BTreeSet<VectorIndex>);
+pub struct Element(pub BTreeSet<VectorIndex>);
 
 pub fn try_parse_element(name: &str) -> Option<Vec<VectorIndex>> {
     let mut iter = name.chars();
