@@ -76,27 +76,35 @@ impl Parser {
         match self.tokens.peek() {
             None => Ok(lhs),
             Some(token) => match token {
-                TokenTree::Punct(p) if p.as_char() == '+' => self.parse_add(lhs),
-                TokenTree::Punct(p) if p.as_char() == '-' => todo!("Parse sub"),
+                TokenTree::Punct(p) if p.as_char() == '+' => self.parse_add_sub(Expr::Add, lhs),
+                TokenTree::Punct(p) if p.as_char() == '-' => self.parse_add_sub(Expr::Sub, lhs),
                 TokenTree::Punct(p) if p.as_char() == '*' => todo!("Parse mul"),
                 token => Err(format!("Unexpected token in expression '{}'", token)),
             },
         }
     }
 
-    fn parse_add(&mut self, lhs: Expr) -> Result<Expr, String> {
+    fn parse_add_sub(
+        &mut self,
+        constructor: fn(Box<Expr>, Box<Expr>) -> Expr,
+        lhs: Expr,
+    ) -> Result<Expr, String> {
         self.tokens.next().expect("Expected to skip plus symbol");
 
-        fn add_left(lhs: Expr, e: Expr) -> Expr {
+        fn add_left(constructor: fn(Box<Expr>, Box<Expr>) -> Expr, lhs: Expr, e: Expr) -> Expr {
             match e {
-                Expr::Add(e_lhs, e_rhs) => Expr::Add(Box::new(add_left(lhs, *e_lhs)), e_rhs),
-                Expr::Sub(e_lhs, e_rhs) => Expr::Sub(Box::new(add_left(lhs, *e_lhs)), e_rhs),
-                e => Expr::Add(Box::new(lhs), Box::new(e)),
+                Expr::Add(e_lhs, e_rhs) => {
+                    Expr::Add(Box::new(add_left(constructor, lhs, *e_lhs)), e_rhs)
+                }
+                Expr::Sub(e_lhs, e_rhs) => {
+                    Expr::Sub(Box::new(add_left(constructor, lhs, *e_lhs)), e_rhs)
+                }
+                e => constructor(Box::new(lhs), Box::new(e)),
             }
         }
 
         let rhs = self.parse_expression()?;
-        Ok(add_left(lhs, rhs))
+        Ok(add_left(constructor, lhs, rhs))
     }
 }
 
