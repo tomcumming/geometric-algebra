@@ -78,7 +78,7 @@ impl Parser {
             Some(token) => match token {
                 TokenTree::Punct(p) if p.as_char() == '+' => self.parse_add_sub(Expr::Add, lhs),
                 TokenTree::Punct(p) if p.as_char() == '-' => self.parse_add_sub(Expr::Sub, lhs),
-                TokenTree::Punct(p) if p.as_char() == '*' => todo!("Parse mul"),
+                TokenTree::Punct(p) if p.as_char() == '*' => self.parse_mul(lhs),
                 token => Err(format!("Unexpected token in expression '{}'", token)),
             },
         }
@@ -105,6 +105,22 @@ impl Parser {
 
         let rhs = self.parse_expression()?;
         Ok(add_left(constructor, lhs, rhs))
+    }
+
+    fn parse_mul(&mut self, lhs: Expr) -> Result<Expr, String> {
+        self.tokens.next().expect("Expected to skip mul symbol");
+
+        fn mul_left(lhs: Expr, e: Expr) -> Expr {
+            match e {
+                Expr::Add(e_lhs, e_rhs) => Expr::Add(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
+                Expr::Sub(e_lhs, e_rhs) => Expr::Sub(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
+                Expr::Mul(e_lhs, e_rhs) => Expr::Mul(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
+                e => Expr::Mul(Box::new(lhs), Box::new(e)),
+            }
+        }
+
+        let rhs = self.parse_expression()?;
+        Ok(mul_left(lhs, rhs))
     }
 }
 
