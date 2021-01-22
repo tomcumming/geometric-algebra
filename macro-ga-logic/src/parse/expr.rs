@@ -5,13 +5,14 @@ use proc_macro2::token_stream::{self};
 use proc_macro2::{Delimiter, TokenStream, TokenTree};
 
 use crate::expr::Expr;
+use crate::parse::element::try_parse_element;
 
 pub struct Parser {
     tokens: Peekable<token_stream::IntoIter>,
 }
 
 impl Parser {
-    pub fn from_tokens(token_stream: TokenStream) -> Parser {
+    pub fn from_token_stream(token_stream: TokenStream) -> Parser {
         Parser {
             tokens: token_stream.into_iter().peekable(),
         }
@@ -25,30 +26,9 @@ fn parse_constant(literal: String) -> Result<Expr, String> {
 }
 
 fn parse_ident(name: String) -> Expr {
-    try_parse_element(&name).unwrap_or(Expr::Symbol(name))
-}
-
-fn try_parse_element(name: &str) -> Option<Expr> {
-    let mut iter = name.chars();
-    if let Some('e') = iter.next() {
-        let number_part: String = iter.take_while(|c| c.is_digit(10)).collect();
-        if !number_part.is_empty() && (number_part == "0" || !number_part.starts_with('0')) {
-            let idx = usize::from_str(&number_part).expect("Could not parse usize vector base");
-            let rest = &name[number_part.len() + 1..];
-            if rest.is_empty() {
-                Some(Expr::Vector(idx))
-            } else {
-                Some(Expr::Mul(
-                    Box::new(Expr::Vector(idx)),
-                    Box::new(try_parse_element(rest)?),
-                ))
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    }
+    try_parse_element(&name)
+        .map(Expr::Element)
+        .unwrap_or(Expr::Symbol(name))
 }
 
 impl Parser {
@@ -63,7 +43,7 @@ impl Parser {
                 Ok(Expr::Negate(Box::new(e)))
             }
             TokenTree::Group(g) if g.delimiter() == Delimiter::Parenthesis => {
-                let mut sub_parser = Parser::from_tokens(g.stream());
+                let mut sub_parser = Parser::from_token_stream(g.stream());
                 Ok(Expr::Brackets(sub_parser.parse_expression()?.into()))
             }
             token => Err(format!("Unexpected token in operand '{}'", token)),
@@ -126,11 +106,13 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     #[test]
     fn test_parse_single_eos() {
-        let mut parser = Parser::from_tokens(TokenStream::new());
+        let mut parser = Parser::from_token_stream(TokenStream::new());
         match parser.parse_operand() {
             Err(_e) => {}
             Ok(_l) => panic!("Should have failed"),
@@ -139,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_parse_constants() -> Result<(), String> {
-        let mut parser = Parser::from_tokens(TokenStream::from_str("1.23 123").unwrap());
+        let mut parser = Parser::from_token_stream(TokenStream::from_str("1.23 123").unwrap());
 
         for expected in [1.23, 123.0].iter() {
             match parser.parse_operand()?.into() {
@@ -155,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_parse_symbols() {
-        let mut parser = Parser::from_tokens(TokenStream::from_str("你好   World").unwrap());
+        let mut parser = Parser::from_token_stream(TokenStream::from_str("你好   World").unwrap());
 
         for expected in ["你好", "World"].iter() {
             match parser.parse_operand().unwrap().into() {
@@ -169,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_parse_negated_number() {
-        let mut parser = Parser::from_tokens(TokenStream::from_str("-123").unwrap());
+        let mut parser = Parser::from_token_stream(TokenStream::from_str("-123").unwrap());
 
         let e: Expr = parser.parse_operand().unwrap().into();
         assert_eq!(e, Expr::Negate(Box::new(Expr::Constant(123.0))));
@@ -178,22 +160,13 @@ mod tests {
     #[test]
     fn test_parse_base_elements() {
         let examples = [
-            ("e0", Expr::Vector(0)),
-            ("e1", Expr::Vector(1)),
-            (
-                "e2e1e0",
-                Expr::Mul(
-                    Box::new(Expr::Vector(2)),
-                    Box::new(Expr::Mul(
-                        Box::new(Expr::Vector(1)),
-                        Box::new(Expr::Vector(0)),
-                    )),
-                ),
-            ),
+            ("e0", Expr::Element(vec![0])),
+            ("e1", Expr::Element(vec![1])),
+            ("e2e1e0", Expr::Element(vec![2, 1, 0])),
         ];
 
         for (src, expected) in examples.iter() {
-            let mut parser = Parser::from_tokens(TokenStream::from_str(src).unwrap());
+            let mut parser = Parser::from_token_stream(TokenStream::from_str(src).unwrap());
             let e: Expr = parser.parse_expression().unwrap().into();
             assert_eq!(&e, expected);
         }
@@ -201,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_addition() {
-        let mut parser = Parser::from_tokens(TokenStream::from_str("1 + 2 +   3").unwrap());
+        let mut parser = Parser::from_token_stream(TokenStream::from_str("1 + 2 +   3").unwrap());
 
         let e: Expr = parser.parse_expression().unwrap().into();
         assert_eq!(
@@ -218,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_parse_addition_brackets() {
-        let mut parser = Parser::from_tokens(TokenStream::from_str("1 + (2 + 3)").unwrap());
+        let mut parser = Parser::from_token_stream(TokenStream::from_str("1 + (2 + 3)").unwrap());
 
         let e: Expr = parser.parse_expression().unwrap().into();
         assert_eq!(
@@ -235,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_subtraction() {
-        let mut parser = Parser::from_tokens(TokenStream::from_str("1   - 2 - 3").unwrap());
+        let mut parser = Parser::from_token_stream(TokenStream::from_str("1   - 2 - 3").unwrap());
 
         let e: Expr = parser.parse_expression().unwrap().into();
         assert_eq!(
@@ -296,7 +269,7 @@ mod tests {
         ];
 
         for (src, expected) in examples.iter() {
-            let mut parser = Parser::from_tokens(TokenStream::from_str(src).unwrap());
+            let mut parser = Parser::from_token_stream(TokenStream::from_str(src).unwrap());
             let e: Expr = parser.parse_expression().unwrap().into();
             assert_eq!(&e, expected);
         }

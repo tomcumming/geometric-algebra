@@ -1,7 +1,9 @@
+use crate::parse::element::VectorIndex;
+
 #[derive(Debug, PartialEq)]
 pub enum Expr {
     Brackets(Box<Expr>),
-    Vector(usize),
+    Element(Vec<VectorIndex>),
     Symbol(String),
     Constant(f32),
     Negate(Box<Expr>),
