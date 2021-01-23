@@ -5,7 +5,7 @@ pub enum Expr {
     Brackets(Box<Expr>),
     Element(Vec<VectorIndex>),
     Symbol(String),
-    Constant(f32),
+    Constant(isize),
     Negate(Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),

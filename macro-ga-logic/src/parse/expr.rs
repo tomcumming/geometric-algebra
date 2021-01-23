@@ -8,7 +8,7 @@ use crate::parse::Tokens;
 
 fn parse_constant(literal: String) -> Result<Expr, String> {
     let parsed =
-        f32::from_str(&literal).map_err(|_e| format!("Could not parse literal '{}'", literal))?;
+        isize::from_str(&literal).map_err(|_e| format!("Could not parse literal '{}'", literal))?;
     Ok(Expr::Constant(parsed))
 }
 
@@ -119,12 +119,12 @@ mod tests {
 
     #[test]
     fn test_parse_constants() -> Result<(), String> {
-        let mut tokens = TokenStream::from_str("1.23 123")
+        let mut tokens = TokenStream::from_str("1 12 123")
             .unwrap()
             .into_iter()
             .peekable();
 
-        for expected in [1.23, 123.0].iter() {
+        for expected in [1, 12, 123].iter() {
             match parse_operand(&mut tokens)?.into() {
                 Expr::Constant(c) => {
                     assert_eq!(c, *expected);
@@ -161,7 +161,7 @@ mod tests {
             .peekable();
 
         let e: Expr = parse_operand(&mut tokens).unwrap().into();
-        assert_eq!(e, Expr::Negate(Box::new(Expr::Constant(123.0))));
+        assert_eq!(e, Expr::Negate(Box::new(Expr::Constant(123))));
     }
 
     #[test]
@@ -191,10 +191,10 @@ mod tests {
             e,
             Expr::Add(
                 Box::new(Expr::Add(
-                    Box::new(Expr::Constant(1.0)),
-                    Box::new(Expr::Constant(2.0))
+                    Box::new(Expr::Constant(1)),
+                    Box::new(Expr::Constant(2))
                 )),
-                Box::new(Expr::Constant(3.0)),
+                Box::new(Expr::Constant(3)),
             )
         );
     }
@@ -210,10 +210,10 @@ mod tests {
         assert_eq!(
             e,
             Expr::Add(
-                Box::new(Expr::Constant(1.0)),
+                Box::new(Expr::Constant(1)),
                 Box::new(Expr::Brackets(Box::new(Expr::Add(
-                    Box::new(Expr::Constant(2.0)),
-                    Box::new(Expr::Constant(3.0))
+                    Box::new(Expr::Constant(2)),
+                    Box::new(Expr::Constant(3))
                 ))))
             )
         );
@@ -231,10 +231,10 @@ mod tests {
             e,
             Expr::Sub(
                 Box::new(Expr::Sub(
-                    Box::new(Expr::Constant(1.0)),
-                    Box::new(Expr::Constant(2.0))
+                    Box::new(Expr::Constant(1)),
+                    Box::new(Expr::Constant(2))
                 )),
-                Box::new(Expr::Constant(3.0)),
+                Box::new(Expr::Constant(3)),
             )
         );
     }
@@ -246,29 +246,29 @@ mod tests {
                 "1 * 2 + 3",
                 Expr::Add(
                     Box::new(Expr::Mul(
-                        Box::new(Expr::Constant(1.0)),
-                        Box::new(Expr::Constant(2.0)),
+                        Box::new(Expr::Constant(1)),
+                        Box::new(Expr::Constant(2)),
                     )),
-                    Box::new(Expr::Constant(3.0)),
+                    Box::new(Expr::Constant(3)),
                 ),
             ),
             (
                 "1 * (2 + 3)",
                 Expr::Mul(
-                    Box::new(Expr::Constant(1.0)),
+                    Box::new(Expr::Constant(1)),
                     Box::new(Expr::Brackets(Box::new(Expr::Add(
-                        Box::new(Expr::Constant(2.0)),
-                        Box::new(Expr::Constant(3.0)),
+                        Box::new(Expr::Constant(2)),
+                        Box::new(Expr::Constant(3)),
                     )))),
                 ),
             ),
             (
                 "1 + 2 * 3",
                 Expr::Add(
-                    Box::new(Expr::Constant(1.0)),
+                    Box::new(Expr::Constant(1)),
                     Box::new(Expr::Mul(
-                        Box::new(Expr::Constant(2.0)),
-                        Box::new(Expr::Constant(3.0)),
+                        Box::new(Expr::Constant(2)),
+                        Box::new(Expr::Constant(3)),
                     )),
                 ),
             ),
@@ -276,10 +276,10 @@ mod tests {
                 "(1 + 2) * 3",
                 Expr::Mul(
                     Box::new(Expr::Brackets(Box::new(Expr::Add(
-                        Box::new(Expr::Constant(1.0)),
-                        Box::new(Expr::Constant(2.0)),
+                        Box::new(Expr::Constant(1)),
+                        Box::new(Expr::Constant(2)),
                     )))),
-                    Box::new(Expr::Constant(3.0)),
+                    Box::new(Expr::Constant(3)),
                 ),
             ),
         ];
@@ -303,10 +303,10 @@ mod tests {
             e,
             Expr::Div(
                 Box::new(Expr::Div(
-                    Box::new(Expr::Constant(1.0)),
-                    Box::new(Expr::Constant(2.0))
+                    Box::new(Expr::Constant(1)),
+                    Box::new(Expr::Constant(2))
                 )),
-                Box::new(Expr::Constant(3.0)),
+                Box::new(Expr::Constant(3)),
             )
         );
     }
