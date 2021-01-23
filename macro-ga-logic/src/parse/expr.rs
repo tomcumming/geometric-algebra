@@ -1,23 +1,10 @@
-use std::iter::Peekable;
 use std::str::FromStr;
 
-use proc_macro2::token_stream::{self};
-use proc_macro2::{Delimiter, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, TokenTree};
 
 use crate::expr::Expr;
 use crate::parse::element::try_parse_element;
-
-pub struct Parser {
-    tokens: Peekable<token_stream::IntoIter>,
-}
-
-impl Parser {
-    pub fn from_token_stream(token_stream: TokenStream) -> Parser {
-        Parser {
-            tokens: token_stream.into_iter().peekable(),
-        }
-    }
-}
+use crate::parse::Tokens;
 
 fn parse_constant(literal: String) -> Result<Expr, String> {
     let parsed =
@@ -31,89 +18,86 @@ fn parse_ident(name: String) -> Expr {
         .unwrap_or(Expr::Symbol(name))
 }
 
-impl Parser {
-    pub fn parse_operand(&mut self) -> Result<Expr, String> {
-        let next_token = self.tokens.next().ok_or("Unexpected end of expression")?;
+pub fn parse_operand(tokens: &mut Tokens) -> Result<Expr, String> {
+    let next_token = tokens.next().ok_or("Unexpected end of expression")?;
 
-        match next_token {
-            TokenTree::Literal(l) => parse_constant(l.to_string()),
-            TokenTree::Ident(i) => Ok(parse_ident(i.to_string())),
-            TokenTree::Punct(p) if p.as_char() == '-' => {
-                let e = self.parse_operand()?;
-                Ok(Expr::Negate(Box::new(e)))
+    match next_token {
+        TokenTree::Literal(l) => parse_constant(l.to_string()),
+        TokenTree::Ident(i) => Ok(parse_ident(i.to_string())),
+        TokenTree::Punct(p) if p.as_char() == '-' => {
+            let e = parse_operand(tokens)?;
+            Ok(Expr::Negate(Box::new(e)))
+        }
+        TokenTree::Group(g) if g.delimiter() == Delimiter::Parenthesis => {
+            let mut tokens = g.stream().into_iter().peekable();
+            Ok(Expr::Brackets(parse_expression(&mut tokens)?.into()))
+        }
+        token => Err(format!("Unexpected token in operand '{}'", token)),
+    }
+}
+
+pub fn parse_expression(tokens: &mut Tokens) -> Result<Expr, String> {
+    let lhs = parse_operand(tokens)?;
+
+    match tokens.peek() {
+        Some(TokenTree::Punct(p)) if p.as_char() == '+' => parse_add_sub(tokens, Expr::Add, lhs),
+        Some(TokenTree::Punct(p)) if p.as_char() == '-' => parse_add_sub(tokens, Expr::Sub, lhs),
+        Some(TokenTree::Punct(p)) if p.as_char() == '*' => parse_mul(tokens, lhs),
+        _ => Ok(lhs),
+    }
+}
+
+fn parse_add_sub(
+    tokens: &mut Tokens,
+    constructor: fn(Box<Expr>, Box<Expr>) -> Expr,
+    lhs: Expr,
+) -> Result<Expr, String> {
+    tokens.next().expect("Expected to skip plus symbol");
+
+    fn add_left(constructor: fn(Box<Expr>, Box<Expr>) -> Expr, lhs: Expr, e: Expr) -> Expr {
+        match e {
+            Expr::Add(e_lhs, e_rhs) => {
+                Expr::Add(Box::new(add_left(constructor, lhs, *e_lhs)), e_rhs)
             }
-            TokenTree::Group(g) if g.delimiter() == Delimiter::Parenthesis => {
-                let mut sub_parser = Parser::from_token_stream(g.stream());
-                Ok(Expr::Brackets(sub_parser.parse_expression()?.into()))
+            Expr::Sub(e_lhs, e_rhs) => {
+                Expr::Sub(Box::new(add_left(constructor, lhs, *e_lhs)), e_rhs)
             }
-            token => Err(format!("Unexpected token in operand '{}'", token)),
+            e => constructor(Box::new(lhs), Box::new(e)),
         }
     }
 
-    pub fn parse_expression(&mut self) -> Result<Expr, String> {
-        let lhs = self.parse_operand()?;
+    let rhs = parse_expression(tokens)?;
+    Ok(add_left(constructor, lhs, rhs))
+}
 
-        match self.tokens.peek() {
-            None => Ok(lhs),
-            Some(token) => match token {
-                TokenTree::Punct(p) if p.as_char() == '+' => self.parse_add_sub(Expr::Add, lhs),
-                TokenTree::Punct(p) if p.as_char() == '-' => self.parse_add_sub(Expr::Sub, lhs),
-                TokenTree::Punct(p) if p.as_char() == '*' => self.parse_mul(lhs),
-                token => Err(format!("Unexpected token in expression '{}'", token)),
-            },
+fn parse_mul(tokens: &mut Tokens, lhs: Expr) -> Result<Expr, String> {
+    tokens.next().expect("Expected to skip mul symbol");
+
+    fn mul_left(lhs: Expr, e: Expr) -> Expr {
+        match e {
+            Expr::Add(e_lhs, e_rhs) => Expr::Add(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
+            Expr::Sub(e_lhs, e_rhs) => Expr::Sub(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
+            Expr::Mul(e_lhs, e_rhs) => Expr::Mul(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
+            e => Expr::Mul(Box::new(lhs), Box::new(e)),
         }
     }
 
-    fn parse_add_sub(
-        &mut self,
-        constructor: fn(Box<Expr>, Box<Expr>) -> Expr,
-        lhs: Expr,
-    ) -> Result<Expr, String> {
-        self.tokens.next().expect("Expected to skip plus symbol");
-
-        fn add_left(constructor: fn(Box<Expr>, Box<Expr>) -> Expr, lhs: Expr, e: Expr) -> Expr {
-            match e {
-                Expr::Add(e_lhs, e_rhs) => {
-                    Expr::Add(Box::new(add_left(constructor, lhs, *e_lhs)), e_rhs)
-                }
-                Expr::Sub(e_lhs, e_rhs) => {
-                    Expr::Sub(Box::new(add_left(constructor, lhs, *e_lhs)), e_rhs)
-                }
-                e => constructor(Box::new(lhs), Box::new(e)),
-            }
-        }
-
-        let rhs = self.parse_expression()?;
-        Ok(add_left(constructor, lhs, rhs))
-    }
-
-    fn parse_mul(&mut self, lhs: Expr) -> Result<Expr, String> {
-        self.tokens.next().expect("Expected to skip mul symbol");
-
-        fn mul_left(lhs: Expr, e: Expr) -> Expr {
-            match e {
-                Expr::Add(e_lhs, e_rhs) => Expr::Add(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
-                Expr::Sub(e_lhs, e_rhs) => Expr::Sub(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
-                Expr::Mul(e_lhs, e_rhs) => Expr::Mul(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
-                e => Expr::Mul(Box::new(lhs), Box::new(e)),
-            }
-        }
-
-        let rhs = self.parse_expression()?;
-        Ok(mul_left(lhs, rhs))
-    }
+    let rhs = parse_expression(tokens)?;
+    Ok(mul_left(lhs, rhs))
 }
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
+    use proc_macro2::TokenStream;
+
     use super::*;
 
     #[test]
     fn test_parse_single_eos() {
-        let mut parser = Parser::from_token_stream(TokenStream::new());
-        match parser.parse_operand() {
+        let mut tokens = TokenStream::new().into_iter().peekable();
+        match parse_operand(&mut tokens) {
             Err(_e) => {}
             Ok(_l) => panic!("Should have failed"),
         }
@@ -121,10 +105,13 @@ mod tests {
 
     #[test]
     fn test_parse_constants() -> Result<(), String> {
-        let mut parser = Parser::from_token_stream(TokenStream::from_str("1.23 123").unwrap());
+        let mut tokens = TokenStream::from_str("1.23 123")
+            .unwrap()
+            .into_iter()
+            .peekable();
 
         for expected in [1.23, 123.0].iter() {
-            match parser.parse_operand()?.into() {
+            match parse_operand(&mut tokens)?.into() {
                 Expr::Constant(c) => {
                     assert_eq!(c, *expected);
                 }
@@ -137,10 +124,13 @@ mod tests {
 
     #[test]
     fn test_parse_symbols() {
-        let mut parser = Parser::from_token_stream(TokenStream::from_str("你好   World").unwrap());
+        let mut tokens = TokenStream::from_str("你好   World")
+            .unwrap()
+            .into_iter()
+            .peekable();
 
         for expected in ["你好", "World"].iter() {
-            match parser.parse_operand().unwrap().into() {
+            match parse_operand(&mut tokens).unwrap().into() {
                 Expr::Symbol(s) => {
                     assert_eq!(s.as_str(), *expected);
                 }
@@ -151,9 +141,12 @@ mod tests {
 
     #[test]
     fn test_parse_negated_number() {
-        let mut parser = Parser::from_token_stream(TokenStream::from_str("-123").unwrap());
+        let mut tokens = TokenStream::from_str("-123")
+            .unwrap()
+            .into_iter()
+            .peekable();
 
-        let e: Expr = parser.parse_operand().unwrap().into();
+        let e: Expr = parse_operand(&mut tokens).unwrap().into();
         assert_eq!(e, Expr::Negate(Box::new(Expr::Constant(123.0))));
     }
 
@@ -166,17 +159,20 @@ mod tests {
         ];
 
         for (src, expected) in examples.iter() {
-            let mut parser = Parser::from_token_stream(TokenStream::from_str(src).unwrap());
-            let e: Expr = parser.parse_expression().unwrap().into();
+            let mut tokens = TokenStream::from_str(src).unwrap().into_iter().peekable();
+            let e: Expr = parse_expression(&mut tokens).unwrap().into();
             assert_eq!(&e, expected);
         }
     }
 
     #[test]
     fn test_parse_simple_addition() {
-        let mut parser = Parser::from_token_stream(TokenStream::from_str("1 + 2 +   3").unwrap());
+        let mut tokens = TokenStream::from_str("1 + 2 +   3")
+            .unwrap()
+            .into_iter()
+            .peekable();
 
-        let e: Expr = parser.parse_expression().unwrap().into();
+        let e: Expr = parse_expression(&mut tokens).unwrap().into();
         assert_eq!(
             e,
             Expr::Add(
@@ -191,9 +187,12 @@ mod tests {
 
     #[test]
     fn test_parse_addition_brackets() {
-        let mut parser = Parser::from_token_stream(TokenStream::from_str("1 + (2 + 3)").unwrap());
+        let mut tokens = TokenStream::from_str("1 + (2 + 3)")
+            .unwrap()
+            .into_iter()
+            .peekable();
 
-        let e: Expr = parser.parse_expression().unwrap().into();
+        let e: Expr = parse_expression(&mut tokens).unwrap().into();
         assert_eq!(
             e,
             Expr::Add(
@@ -208,9 +207,12 @@ mod tests {
 
     #[test]
     fn test_parse_simple_subtraction() {
-        let mut parser = Parser::from_token_stream(TokenStream::from_str("1   - 2 - 3").unwrap());
+        let mut tokens = TokenStream::from_str("1   - 2 - 3")
+            .unwrap()
+            .into_iter()
+            .peekable();
 
-        let e: Expr = parser.parse_expression().unwrap().into();
+        let e: Expr = parse_expression(&mut tokens).unwrap().into();
         assert_eq!(
             e,
             Expr::Sub(
@@ -269,8 +271,8 @@ mod tests {
         ];
 
         for (src, expected) in examples.iter() {
-            let mut parser = Parser::from_token_stream(TokenStream::from_str(src).unwrap());
-            let e: Expr = parser.parse_expression().unwrap().into();
+            let mut tokens = TokenStream::from_str(src).unwrap().into_iter().peekable();
+            let e: Expr = parse_expression(&mut tokens).unwrap().into();
             assert_eq!(&e, expected);
         }
     }
