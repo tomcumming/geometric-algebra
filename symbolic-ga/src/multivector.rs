@@ -1,58 +1,39 @@
 use std::collections::BTreeMap;
-use std::ops::Add;
 
-use crate::basis::Basis;
-use crate::element::{Element, SimplifiedElement};
+use crate::basis::{Basis, SquaredElement};
+use crate::element::Element;
 use crate::symbols::Symbols;
 
-pub struct MultiVector<B: Basis>(BTreeMap<Element<B>, Symbols>);
+#[derive(Debug, Clone, PartialEq)]
+pub struct MultiVector(BTreeMap<Element, Symbols>);
 
-impl<B: Basis> std::fmt::Debug for MultiVector<B> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        f.debug_struct("MultiVector")
-            .field("elems", &self.0)
-            .finish()
-    }
-}
+impl MultiVector {
+    pub fn multiply(&self, basis: &Basis, rhs: &MultiVector) -> Result<MultiVector, String> {
+        let mut result = MultiVector(BTreeMap::new());
 
-impl<B: Basis> PartialEq for MultiVector<B> {
-    fn eq(&self, rhs: &Self) -> bool {
-        self.0 == rhs.0
-    }
-}
-
-impl<'a, B: Basis> std::ops::Mul for &'a MultiVector<B> {
-    type Output = MultiVector<B>;
-
-    fn mul(self, rhs: &MultiVector<B>) -> MultiVector<B> {
-        self.0
-            .iter()
-            .flat_map(|(lhs_elem, lhs_sym)| {
-                rhs.0.iter().map(move |(rhs_elem, rhs_sym)| {
-                    let sym = lhs_sym * rhs_sym;
-                    match lhs_elem * rhs_elem {
-                        SimplifiedElement::Zero => MultiVector::<B>(BTreeMap::new()),
-                        SimplifiedElement::Positive(elem) => {
-                            MultiVector(vec![(elem, sym)].into_iter().collect())
-                        }
-                        SimplifiedElement::Negative(elem) => {
-                            MultiVector(vec![(elem, sym.invert())].into_iter().collect())
-                        }
+        for (lhs_elem, lhs_sym) in self.0.iter() {
+            for (rhs_elem, rhs_sym) in rhs.0.iter() {
+                let sym = lhs_sym * rhs_sym;
+                match lhs_elem.multiply(basis, rhs_elem)?.elems_and_sign() {
+                    (SquaredElement::Zero, _) => {}
+                    (SquaredElement::One, es) => {
+                        let rhs = MultiVector(vec![(es, sym)].into_iter().collect());
+                        result = result.add(rhs);
                     }
-                })
-            })
-            .fold(MultiVector::<B>(BTreeMap::new()), |prev, curr| {
-                prev.add(curr)
-            })
+                    (SquaredElement::MinusOne, es) => {
+                        let rhs = MultiVector(vec![(es, sym.invert())].into_iter().collect());
+                        result = result.add(rhs);
+                    }
+                }
+            }
+        }
+
+        Ok(result)
     }
-}
 
-impl<B: Basis> Add for MultiVector<B> {
-    type Output = MultiVector<B>;
-
-    fn add(self, rhs: MultiVector<B>) -> MultiVector<B> {
+    pub fn add(self, rhs: MultiVector) -> MultiVector {
         self.0.into_iter().chain(rhs.0.into_iter()).fold(
-            MultiVector::<B>(BTreeMap::new()),
+            MultiVector(BTreeMap::new()),
             |mut prev, (elem, sym)| {
                 let existing = prev
                     .0
@@ -73,41 +54,32 @@ mod tests {
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
 
+    use crate::basis::Vector;
+
     use super::*;
-    use crate::vector::Vector;
 
-    struct G2;
-
-    impl Basis for G2 {
-        const ZERO: usize = 0;
-        const POSITIVE: usize = 2;
-        const NEGATIVE: usize = 0;
-    }
+    const G2: Basis = Basis {
+        zero: 0,
+        positive: 2,
+        negative: 0,
+    };
 
     #[test]
     fn test_simple_mult() {
         // (5 e2) (3a e2 + bb e1) = 15a - 5 bb e12
         // yeah the length of these expressions is absolutely bananas...
-        let lhs = MultiVector::<G2>(
+        let lhs = MultiVector(
             vec![(
-                Element(
-                    vec![Vector::<G2>::from_index(1).unwrap()]
-                        .into_iter()
-                        .collect(),
-                ),
+                Element(vec![Vector(1)].into_iter().collect()),
                 Symbols(vec![(BTreeMap::new(), 5.0)].into_iter().collect()),
             )]
             .into_iter()
             .collect(),
         );
-        let rhs = MultiVector::<G2>(
+        let rhs = MultiVector(
             vec![
                 (
-                    Element(
-                        vec![Vector::<G2>::from_index(1).unwrap()]
-                            .into_iter()
-                            .collect(),
-                    ),
+                    Element(vec![Vector(1)].into_iter().collect()),
                     Symbols(
                         vec![(vec![("a".to_string(), 1)].into_iter().collect(), 3.0)]
                             .into_iter()
@@ -115,11 +87,7 @@ mod tests {
                     ),
                 ),
                 (
-                    Element(
-                        vec![Vector::<G2>::from_index(0).unwrap()]
-                            .into_iter()
-                            .collect(),
-                    ),
+                    Element(vec![Vector(0)].into_iter().collect()),
                     Symbols(
                         vec![(vec![("b".to_string(), 2)].into_iter().collect(), 1.0)]
                             .into_iter()
@@ -131,7 +99,7 @@ mod tests {
             .collect(),
         );
 
-        let expected = MultiVector::<G2>(
+        let expected = MultiVector(
             vec![
                 (
                     Element(BTreeSet::new()),
@@ -142,14 +110,7 @@ mod tests {
                     ),
                 ),
                 (
-                    Element(
-                        vec![
-                            Vector::<G2>::from_index(0).unwrap(),
-                            Vector::<G2>::from_index(1).unwrap(),
-                        ]
-                        .into_iter()
-                        .collect(),
-                    ),
+                    Element(vec![Vector(0), Vector(1)].into_iter().collect()),
                     Symbols(
                         vec![(vec![("b".to_string(), 2)].into_iter().collect(), -5.0)]
                             .into_iter()
@@ -161,6 +122,6 @@ mod tests {
             .collect(),
         );
 
-        assert_eq!(&lhs * &rhs, expected);
+        assert_eq!(lhs.multiply(&G2, &rhs).unwrap(), expected);
     }
 }

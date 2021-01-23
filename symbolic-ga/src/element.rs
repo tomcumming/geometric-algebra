@@ -1,80 +1,28 @@
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
-use crate::basis::Basis;
-use crate::vector::Vector;
+use crate::basis::{Basis, SquaredElement, Vector};
 
-pub enum SquaredElement {
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
+pub struct Element(pub BTreeSet<Vector>);
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SimplifiedElement {
     Zero,
-    One,
-    MinusOne,
+    Positive(Element),
+    Negative(Element),
 }
 
-pub struct Element<B: Basis>(pub BTreeSet<Vector<B>>);
-
-impl<B: Basis> std::fmt::Debug for Element<B> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        f.debug_struct("Element").field("elems", &self.0).finish()
-    }
-}
-
-impl<B: Basis> PartialEq for Element<B> {
-    fn eq(&self, rhs: &Self) -> bool {
-        self.0 == rhs.0
-    }
-}
-
-impl<B: Basis> Eq for Element<B> {}
-
-impl<B: Basis> PartialOrd for Element<B> {
-    fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&rhs.0)
-    }
-}
-
-impl<B: Basis> Ord for Element<B> {
-    fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&rhs.0)
-    }
-}
-
-pub enum SimplifiedElement<B: Basis> {
-    Zero,
-    Positive(Element<B>),
-    Negative(Element<B>),
-}
-
-impl<B: Basis> std::fmt::Debug for SimplifiedElement<B> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+impl SimplifiedElement {
+    pub fn elems_and_sign(self) -> (SquaredElement, Element) {
         match self {
-            SimplifiedElement::Zero => 0.fmt(f),
-            SimplifiedElement::Positive(es) => f.write_fmt(format_args!("+{:?}", es)),
-            SimplifiedElement::Negative(es) => f.write_fmt(format_args!("-{:?}", es)),
-        }
-    }
-}
-
-impl<B: Basis> PartialEq for SimplifiedElement<B> {
-    fn eq(&self, rhs: &Self) -> bool {
-        match (self, rhs) {
-            (SimplifiedElement::Zero, SimplifiedElement::Zero) => true,
-            (SimplifiedElement::Positive(es), SimplifiedElement::Positive(es2)) => es == es2,
-            (SimplifiedElement::Negative(es), SimplifiedElement::Negative(es2)) => es == es2,
-            _ => false,
-        }
-    }
-}
-
-impl<B: Basis> SimplifiedElement<B> {
-    pub fn elems(self) -> Option<Element<B>> {
-        match self {
-            SimplifiedElement::Zero => None,
-            SimplifiedElement::Positive(es) => Some(es),
-            SimplifiedElement::Negative(es) => Some(es),
+            SimplifiedElement::Zero => (SquaredElement::Zero, Element(BTreeSet::new())),
+            SimplifiedElement::Positive(es) => (SquaredElement::One, es),
+            SimplifiedElement::Negative(es) => (SquaredElement::MinusOne, es),
         }
     }
 
-    pub fn flip(self) -> SimplifiedElement<B> {
+    pub fn flip(self) -> SimplifiedElement {
         match self {
             SimplifiedElement::Zero => SimplifiedElement::Zero,
             SimplifiedElement::Positive(es) => SimplifiedElement::Negative(es),
@@ -82,56 +30,84 @@ impl<B: Basis> SimplifiedElement<B> {
         }
     }
 
-    pub fn then<F: FnOnce(Element<B>) -> SimplifiedElement<B>>(self, f: F) -> Self {
+    pub fn map(self, f: impl FnOnce(Element) -> Element) -> SimplifiedElement {
         match self {
             SimplifiedElement::Zero => SimplifiedElement::Zero,
-            SimplifiedElement::Positive(es) => f(es),
-            SimplifiedElement::Negative(es) => f(es).flip(),
+            SimplifiedElement::Positive(es) => SimplifiedElement::Positive(f(es)),
+            SimplifiedElement::Negative(es) => SimplifiedElement::Negative(f(es)),
         }
     }
 }
 
-impl<'a, B: Basis> std::ops::Mul for &'a Element<B> {
-    type Output = SimplifiedElement<B>;
-
-    fn mul(self, rhs: &Element<B>) -> SimplifiedElement<B> {
-        let mut elems: Vec<Vector<B>> = self.0.iter().cloned().collect();
-        elems.reverse();
-
-        elems.into_iter().fold(
-            SimplifiedElement::Positive(Element(rhs.0.clone())),
-            |prev, curr| prev.then(|es| es.multiply_vector_left(curr)),
-        )
-    }
-}
-
-impl<B: Basis> Element<B> {
-    fn multiply_vector_left(self, left: Vector<B>) -> SimplifiedElement<B> {
+impl Element {
+    fn multiply_vector_left(
+        self,
+        basis: &Basis,
+        left: Vector,
+    ) -> Result<SimplifiedElement, String> {
         let Element(mut vs) = self;
         match vs.pop_first() {
-            None => SimplifiedElement::Positive(Element(vec![left].into_iter().collect())),
+            None => Ok(SimplifiedElement::Positive(Element(
+                vec![left].into_iter().collect(),
+            ))),
             Some(first_v) => match first_v.cmp(&left) {
                 Ordering::Greater => {
                     vs.insert(first_v);
                     vs.insert(left);
-                    SimplifiedElement::Positive(Element(vs))
+                    Ok(SimplifiedElement::Positive(Element(vs)))
                 }
-                Ordering::Equal => match left.square() {
-                    SquaredElement::Zero => SimplifiedElement::Zero,
-                    SquaredElement::One => SimplifiedElement::Positive(Element(vs)),
-                    SquaredElement::MinusOne => SimplifiedElement::Negative(Element(vs)),
+                Ordering::Equal => match left.square(basis)? {
+                    SquaredElement::Zero => Ok(SimplifiedElement::Zero),
+                    SquaredElement::One => Ok(SimplifiedElement::Positive(Element(vs))),
+                    SquaredElement::MinusOne => Ok(SimplifiedElement::Negative(Element(vs))),
                 },
-                Ordering::Less => Element(vs).multiply_vector_left(left).then(|mut es| {
-                    es.0.insert(first_v);
-                    SimplifiedElement::Negative(es) // causes a flip
-                }),
+                Ordering::Less => {
+                    let rest = Element(vs).multiply_vector_left(basis, left)?;
+                    let rest = rest.map(|mut element| {
+                        element.0.insert(first_v);
+                        element
+                    });
+                    Ok(rest.flip())
+                }
             },
         }
     }
+
+    pub fn multiply(&self, basis: &Basis, rhs: &Element) -> Result<SimplifiedElement, String> {
+        let mut elems: Vec<Vector> = self.0.iter().cloned().collect();
+        elems.reverse();
+
+        let mut curr = SimplifiedElement::Positive(Element(rhs.0.clone()));
+
+        for lhs_rhs in elems {
+            match curr.elems_and_sign() {
+                (SquaredElement::Zero, _) => return Ok(SimplifiedElement::Zero),
+                (sign, elems) => match elems.multiply_vector_left(basis, lhs_rhs)? {
+                    SimplifiedElement::Zero => return Ok(SimplifiedElement::Zero),
+                    SimplifiedElement::Positive(es) => {
+                        curr = if sign == SquaredElement::MinusOne {
+                            SimplifiedElement::Negative(es)
+                        } else {
+                            SimplifiedElement::Positive(es)
+                        }
+                    }
+                    SimplifiedElement::Negative(es) => {
+                        curr = if sign == SquaredElement::MinusOne {
+                            SimplifiedElement::Positive(es)
+                        } else {
+                            SimplifiedElement::Negative(es)
+                        }
+                    }
+                },
+            }
+        }
+
+        Ok(curr)
+    }
 }
 
-impl<B: Basis> From<Vector<B>> for Element<B> {
-    fn from(v: Vector<B>) -> Element<B> {
+impl From<Vector> for Element {
+    fn from(v: Vector) -> Element {
         Element(vec![v].into_iter().collect())
     }
 }
@@ -140,50 +116,46 @@ impl<B: Basis> From<Vector<B>> for Element<B> {
 mod tests {
     use super::*;
 
-    struct OneTwoOne {}
-
-    impl Basis for OneTwoOne {
-        const ZERO: usize = 1;
-        const POSITIVE: usize = 2;
-        const NEGATIVE: usize = 1;
-    }
+    const ONETWOONE: Basis = Basis {
+        zero: 1,
+        positive: 2,
+        negative: 1,
+    };
 
     #[test]
-    fn test_bivector_squares_to_minus_one() {
-        let e1 = Vector::<OneTwoOne>::from_index(1).unwrap();
-        let e2 = Vector::<OneTwoOne>::from_index(2).unwrap();
+    fn test_bivector_squares_to_minus_one() -> Result<(), String> {
+        let e1 = Vector(1);
+        let e2: Element = Vector(2).into();
 
-        let e2: Element<OneTwoOne> = e2.into();
-        let e12 = e2.multiply_vector_left(e1);
+        let e12 = e2.multiply_vector_left(&ONETWOONE, e1)?;
 
         match e12 {
             SimplifiedElement::Positive(e12) => {
                 assert_eq!(
-                    &e12 * &e12,
+                    e12.multiply(&ONETWOONE, &e12)?,
                     SimplifiedElement::Negative(Element(BTreeSet::new()))
                 );
+                Ok(())
             }
-            _ => panic!("Could not construct bivector"),
+            _ => Err("Could not construct bivector".to_string()),
         }
     }
 
     #[test]
-    fn test_squares_to_zero() {
-        let e0 = Vector::<OneTwoOne>::from_index(0).unwrap();
-        let e1 = Vector::<OneTwoOne>::from_index(1).unwrap();
-        let e2 = Vector::<OneTwoOne>::from_index(2).unwrap();
+    fn test_squares_to_zero() -> Result<(), String> {
+        let e0 = Vector(0);
+        let e1: Element = Vector(1).into();
+        let e2: Element = Vector(2).into();
 
-        let e1: Element<OneTwoOne> = e1.into();
-        let e2: Element<OneTwoOne> = e2.into();
-
-        let e01 = e1.multiply_vector_left(e0);
-        let e02 = e2.multiply_vector_left(e0);
+        let e01 = e1.multiply_vector_left(&ONETWOONE, e0)?;
+        let e02 = e2.multiply_vector_left(&ONETWOONE, e0)?;
 
         match (e01, e02) {
             (SimplifiedElement::Positive(e01), SimplifiedElement::Positive(e02)) => {
-                assert_eq!(&e01 * &e02, SimplifiedElement::Zero,);
+                assert_eq!(e01.multiply(&ONETWOONE, &e02)?, SimplifiedElement::Zero,);
+                Ok(())
             }
-            _ => panic!("Could not construct bivectors"),
+            _ => Err("Could not construct bivectors".to_string()),
         }
     }
 }
