@@ -42,7 +42,8 @@ pub fn parse_expression(tokens: &mut Tokens) -> Result<Expr, String> {
     match tokens.peek() {
         Some(TokenTree::Punct(p)) if p.as_char() == '+' => parse_add_sub(tokens, Expr::Add, lhs),
         Some(TokenTree::Punct(p)) if p.as_char() == '-' => parse_add_sub(tokens, Expr::Sub, lhs),
-        Some(TokenTree::Punct(p)) if p.as_char() == '*' => parse_mul(tokens, lhs),
+        Some(TokenTree::Punct(p)) if p.as_char() == '*' => parse_mul_div(tokens, Expr::Mul, lhs),
+        Some(TokenTree::Punct(p)) if p.as_char() == '/' => parse_mul_div(tokens, Expr::Div, lhs),
         _ => Ok(lhs),
     }
 }
@@ -70,20 +71,33 @@ fn parse_add_sub(
     Ok(add_left(constructor, lhs, rhs))
 }
 
-fn parse_mul(tokens: &mut Tokens, lhs: Expr) -> Result<Expr, String> {
+fn parse_mul_div(
+    tokens: &mut Tokens,
+    constructor: fn(Box<Expr>, Box<Expr>) -> Expr,
+    lhs: Expr,
+) -> Result<Expr, String> {
     tokens.next().expect("Expected to skip mul symbol");
 
-    fn mul_left(lhs: Expr, e: Expr) -> Expr {
+    fn mul_left(constructor: fn(Box<Expr>, Box<Expr>) -> Expr, lhs: Expr, e: Expr) -> Expr {
         match e {
-            Expr::Add(e_lhs, e_rhs) => Expr::Add(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
-            Expr::Sub(e_lhs, e_rhs) => Expr::Sub(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
-            Expr::Mul(e_lhs, e_rhs) => Expr::Mul(Box::new(mul_left(lhs, *e_lhs)), e_rhs),
-            e => Expr::Mul(Box::new(lhs), Box::new(e)),
+            Expr::Add(e_lhs, e_rhs) => {
+                Expr::Add(Box::new(mul_left(constructor, lhs, *e_lhs)), e_rhs)
+            }
+            Expr::Sub(e_lhs, e_rhs) => {
+                Expr::Sub(Box::new(mul_left(constructor, lhs, *e_lhs)), e_rhs)
+            }
+            Expr::Mul(e_lhs, e_rhs) => {
+                Expr::Mul(Box::new(mul_left(constructor, lhs, *e_lhs)), e_rhs)
+            }
+            Expr::Div(e_lhs, e_rhs) => {
+                Expr::Div(Box::new(mul_left(constructor, lhs, *e_lhs)), e_rhs)
+            }
+            e => constructor(Box::new(lhs), Box::new(e)),
         }
     }
 
     let rhs = parse_expression(tokens)?;
-    Ok(mul_left(lhs, rhs))
+    Ok(mul_left(constructor, lhs, rhs))
 }
 
 #[cfg(test)]
@@ -275,5 +289,25 @@ mod tests {
             let e: Expr = parse_expression(&mut tokens).unwrap().into();
             assert_eq!(&e, expected);
         }
+    }
+
+    #[test]
+    fn test_parse_simple_division() {
+        let mut tokens = TokenStream::from_str("1 / 2 / 3")
+            .unwrap()
+            .into_iter()
+            .peekable();
+
+        let e: Expr = parse_expression(&mut tokens).unwrap().into();
+        assert_eq!(
+            e,
+            Expr::Div(
+                Box::new(Expr::Div(
+                    Box::new(Expr::Constant(1.0)),
+                    Box::new(Expr::Constant(2.0))
+                )),
+                Box::new(Expr::Constant(3.0)),
+            )
+        );
     }
 }
