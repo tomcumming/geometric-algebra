@@ -55,6 +55,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use crate::basis::Vector;
+    use crate::symbols::lift_integer;
 
     use super::*;
 
@@ -71,7 +72,11 @@ mod tests {
         let lhs = MultiVector(
             vec![(
                 Element(vec![Vector(1)].into_iter().collect()),
-                Symbols(vec![(BTreeMap::new(), 5.0)].into_iter().collect()),
+                Symbols(
+                    vec![(BTreeMap::new(), lift_integer(5))]
+                        .into_iter()
+                        .collect(),
+                ),
             )]
             .into_iter()
             .collect(),
@@ -81,17 +86,23 @@ mod tests {
                 (
                     Element(vec![Vector(1)].into_iter().collect()),
                     Symbols(
-                        vec![(vec![("a".to_string(), 1)].into_iter().collect(), 3.0)]
-                            .into_iter()
-                            .collect(),
+                        vec![(
+                            vec![("a".to_string(), 1)].into_iter().collect(),
+                            lift_integer(3),
+                        )]
+                        .into_iter()
+                        .collect(),
                     ),
                 ),
                 (
                     Element(vec![Vector(0)].into_iter().collect()),
                     Symbols(
-                        vec![(vec![("b".to_string(), 2)].into_iter().collect(), 1.0)]
-                            .into_iter()
-                            .collect(),
+                        vec![(
+                            vec![("b".to_string(), 2)].into_iter().collect(),
+                            lift_integer(1),
+                        )]
+                        .into_iter()
+                        .collect(),
                     ),
                 ),
             ]
@@ -104,17 +115,23 @@ mod tests {
                 (
                     Element(BTreeSet::new()),
                     Symbols(
-                        vec![(vec![("a".to_string(), 1)].into_iter().collect(), 15.0)]
-                            .into_iter()
-                            .collect(),
+                        vec![(
+                            vec![("a".to_string(), 1)].into_iter().collect(),
+                            lift_integer(15),
+                        )]
+                        .into_iter()
+                        .collect(),
                     ),
                 ),
                 (
                     Element(vec![Vector(0), Vector(1)].into_iter().collect()),
                     Symbols(
-                        vec![(vec![("b".to_string(), 2)].into_iter().collect(), -5.0)]
-                            .into_iter()
-                            .collect(),
+                        vec![(
+                            vec![("b".to_string(), 2)].into_iter().collect(),
+                            lift_integer(-5),
+                        )]
+                        .into_iter()
+                        .collect(),
                     ),
                 ),
             ]

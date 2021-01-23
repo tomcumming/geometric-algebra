@@ -2,3 +2,6 @@
 edition = '2018'
 name = 'symbolic-ga'
 version = '0.0.1'
+
+[dependencies]
+num = "0.3.1"

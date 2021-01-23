@@ -1,11 +1,19 @@
 use std::collections::BTreeMap;
 
+use num::bigint::BigInt;
+use num::rational::BigRational;
+use num::Zero;
+
 pub type Symbol = String;
 
 pub type SymbolPowers = BTreeMap<Symbol, usize>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Symbols(pub BTreeMap<SymbolPowers, f32>);
+pub struct Symbols(pub BTreeMap<SymbolPowers, BigRational>);
+
+pub fn lift_integer(x: isize) -> BigRational {
+    BigRational::from(BigInt::from(x))
+}
 
 impl<'a> std::ops::Mul for &'a Symbols {
     type Output = Symbols;
@@ -42,17 +50,21 @@ impl std::ops::Add for Symbols {
 }
 
 impl Symbols {
-    fn add_scaled_power(mut self, scale: f32, power: SymbolPowers) -> Symbols {
-        let existing = self.0.remove(&power).unwrap_or(0.0);
+    fn add_scaled_power(mut self, scale: BigRational, power: SymbolPowers) -> Symbols {
+        let existing = self.0.remove(&power).unwrap_or(lift_integer(0));
         let sum = existing + scale;
-        if sum != 0.0 {
+        if !sum.is_zero() {
             self.0.insert(power, sum);
         }
         self
     }
 
     pub fn invert(&self) -> Self {
-        self * &Symbols(vec![(BTreeMap::new(), -1.0)].into_iter().collect())
+        self * &Symbols(
+            vec![(BTreeMap::new(), lift_integer(-1))]
+                .into_iter()
+                .collect(),
+        )
     }
 }
 
@@ -65,6 +77,8 @@ fn multiply_symbol_powers(lhs: &SymbolPowers, rhs: &SymbolPowers) -> SymbolPower
             prev
         })
 }
+
+/*
 
 #[cfg(test)]
 mod tests {
@@ -125,3 +139,5 @@ mod tests {
         assert_eq!(&lhs * &rhs, expected);
     }
 }
+
+*/
