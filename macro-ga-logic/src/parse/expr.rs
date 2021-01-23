@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use proc_macro2::{Delimiter, TokenTree};
 
-use crate::expr::Expr;
 use crate::parse::element::try_parse_element;
 use crate::parse::Tokens;
+use crate::Expr;
 
 fn parse_constant(literal: String) -> Result<Expr, String> {
     let parsed =

@@ -2,8 +2,9 @@ use std::collections::BTreeSet;
 
 use proc_macro2::TokenTree;
 
-use crate::parse::element::{try_parse_element, Element};
+use crate::parse::element::try_parse_element;
 use crate::parse::Tokens;
+use crate::{Element, MVType};
 
 pub fn parse_element(tokens: &mut Tokens) -> Result<Element, String> {
     let token = tokens
@@ -52,6 +53,26 @@ pub fn parse_element_list(tokens: &mut Tokens) -> Result<Vec<Element>, String> {
     }
 
     Ok(elems)
+}
+
+pub fn parse_type(tokens: &mut Tokens) -> Result<MVType, String> {
+    let elems = parse_element_list(tokens)?;
+
+    let ordered = elems.windows(2).all(|els| match els {
+        [left, right] => left < right,
+        _ => unreachable!("Window size 2"),
+    });
+
+    if ordered {
+        Ok(MVType(elems.into_iter().collect()))
+    } else {
+        let correct_order = elems.clone().sort();
+
+        Err(format!(
+            "Elements in type must be in order and unique: '{:?}' => '{:?}'",
+            elems, correct_order
+        ))
+    }
 }
 
 #[cfg(test)]
