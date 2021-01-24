@@ -13,6 +13,11 @@ pub enum SimplifiedElement {
     Negative(Element),
 }
 
+fn pop_first_vector(vs: &mut BTreeSet<Vector>) -> Option<Vector> {
+    let v = vs.iter().cloned().nth(0);
+    v.and_then(|v| vs.take(&v))
+}
+
 impl SimplifiedElement {
     pub fn elems_and_sign(self) -> (SquaredElement, Element) {
         match self {
@@ -46,7 +51,7 @@ impl Element {
         left: Vector,
     ) -> Result<SimplifiedElement, String> {
         let Element(mut vs) = self;
-        match vs.pop_first() {
+        match pop_first_vector(&mut vs) {
             None => Ok(SimplifiedElement::Positive(Element(
                 vec![left].into_iter().collect(),
             ))),
