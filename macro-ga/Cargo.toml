@@ -5,3 +5,8 @@ version = '0.0.1'
 
 [lib]
 proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+macro-ga-logic = { path = "../macro-ga-logic" }
+symbolic-ga = { path = "../symbolic-ga" }

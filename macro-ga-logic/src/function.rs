@@ -1,4 +1,7 @@
-use crate::{Expr, MVType};
+use proc_macro2::TokenStream;
+
+use crate::types::type_signiture;
+use crate::{CodeBasis, Expr, MVType};
 
 pub struct Function {
     args: Vec<(String, MVType)>,
@@ -16,8 +19,13 @@ impl Function {
 
     pub fn new(args: Vec<(String, MVType)>, body: Expr) -> Result<Function, String> {
         // TODO check arg names are valid and unique
+        //      Must not conflict with suffixed names
         // TODO check expression in valid in ctx
 
         Ok(Function { args, body })
+    }
+
+    pub fn as_code(&self, basis: &CodeBasis) -> TokenStream {
+        type_signiture(basis, &self.args[0].1)
     }
 }

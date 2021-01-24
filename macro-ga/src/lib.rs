@@ -1,3 +1,7 @@
+extern crate proc_macro;
+
+mod function;
+
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
@@ -6,7 +10,9 @@ use proc_macro::TokenTree;
 
 static mut GLOBAL_BASIS: Option<BTreeMap<String, (usize, usize, usize)>> = None;
 
-fn use_global_basis<R, F: FnOnce(&mut BTreeMap<String, (usize, usize, usize)>) -> R>(f: F) -> R {
+pub(crate) fn use_global_basis<R, F: FnOnce(&mut BTreeMap<String, (usize, usize, usize)>) -> R>(
+    f: F,
+) -> R {
     let mut basis = unsafe { GLOBAL_BASIS.take().unwrap_or_default() };
 
     let ret = f(&mut basis);
@@ -48,11 +54,6 @@ pub fn define_basis(token_stream: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn cool(_item: TokenStream) -> TokenStream {
-    let found = use_global_basis(|basis| match basis.get("PGA2") {
-        Some(b) => *b,
-        None => panic!("no basis set"),
-    });
-
-    format!("{:?}", found).parse().unwrap()
+pub fn ga(token_stream: TokenStream) -> TokenStream {
+    function::function(token_stream)
 }
