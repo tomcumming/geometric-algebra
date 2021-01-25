@@ -5,7 +5,7 @@ use crate::element::Element;
 use crate::symbols::Symbols;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MultiVector(BTreeMap<Element, Symbols>);
+pub struct MultiVector(pub BTreeMap<Element, Symbols>);
 
 impl MultiVector {
     pub fn multiply(&self, basis: &Basis, rhs: &MultiVector) -> Result<MultiVector, String> {
