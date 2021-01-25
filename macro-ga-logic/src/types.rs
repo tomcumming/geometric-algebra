@@ -10,7 +10,7 @@ pub fn element_type_name(basis: &CodeBasis, Element(vs): &Element) -> String {
         let mut name = String::new();
         for v in vs {
             name += "E";
-            name += &v.to_string();
+            name += &v.0.to_string();
         }
         name
     }
@@ -23,7 +23,7 @@ pub fn element_term_name(Element(vs): &Element) -> String {
         let mut name = String::new();
         for v in vs {
             name += "e";
-            name += &v.to_string();
+            name += &v.0.to_string();
         }
         name
     }

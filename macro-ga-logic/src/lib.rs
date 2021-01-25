@@ -4,12 +4,8 @@ pub mod types;
 
 use std::collections::BTreeSet;
 
-use symbolic_ga::basis::Basis;
-
-pub type VectorIndex = usize;
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Element(pub BTreeSet<VectorIndex>);
+use symbolic_ga::basis::{Basis, Vector};
+use symbolic_ga::element::Element;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MVType(pub BTreeSet<Element>);
@@ -17,7 +13,7 @@ pub struct MVType(pub BTreeSet<Element>);
 #[derive(Debug, PartialEq)]
 pub enum Expr {
     Brackets(Box<Expr>),
-    Element(Vec<VectorIndex>),
+    Element(Vec<Vector>),
     Symbol(String),
     Constant(isize),
     Negate(Box<Expr>),

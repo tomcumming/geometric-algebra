@@ -106,6 +106,8 @@ mod tests {
 
     use proc_macro2::TokenStream;
 
+    use symbolic_ga::basis::Vector;
+
     use super::*;
 
     #[test]
@@ -167,9 +169,12 @@ mod tests {
     #[test]
     fn test_parse_base_elements() {
         let examples = [
-            ("e0", Expr::Element(vec![0])),
-            ("e1", Expr::Element(vec![1])),
-            ("e2e1e0", Expr::Element(vec![2, 1, 0])),
+            ("e0", Expr::Element(vec![Vector(0)])),
+            ("e1", Expr::Element(vec![Vector(1)])),
+            (
+                "e2e1e0",
+                Expr::Element(vec![Vector(2), Vector(1), Vector(0)]),
+            ),
         ];
 
         for (src, expected) in examples.iter() {

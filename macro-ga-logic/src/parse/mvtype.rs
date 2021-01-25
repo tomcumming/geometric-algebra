@@ -81,6 +81,8 @@ mod tests {
 
     use proc_macro2::TokenStream;
 
+    use symbolic_ga::basis::Vector;
+
     use super::*;
 
     #[test]
@@ -94,8 +96,8 @@ mod tests {
             parse_element_list(&mut tokens).unwrap(),
             vec![
                 Element(BTreeSet::new()),
-                Element(vec![1].into_iter().collect()),
-                Element(vec![1, 2, 3].into_iter().collect()),
+                Element(vec![1].into_iter().map(Vector).collect()),
+                Element(vec![1, 2, 3].into_iter().map(Vector).collect()),
             ]
         )
     }

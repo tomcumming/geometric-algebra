@@ -31,7 +31,10 @@ impl Function {
         args_as_code(basis, &self.args, &mut tokens);
         tokens.push(Punct::new('|', Spacing::Alone).into());
 
-        tokens.push(TokenTree::from(Group::new(Delimiter::Parenthesis, TokenStream::new())));
+        tokens.push(TokenTree::from(Group::new(
+            Delimiter::Parenthesis,
+            TokenStream::new(),
+        )));
 
         tokens.into_iter().collect()
     }
@@ -66,12 +69,10 @@ fn arg_as_code(basis: &CodeBasis, name: &str, mv_type: &MVType, tokens: &mut Vec
     }
 
     if mv_type.0.len() > 1 {
-        tokens.push(
-            TokenTree::from(Group::new(
-                Delimiter::Parenthesis,
-                pattern_tokens.into_iter().collect(),
-            )),
-        );
+        tokens.push(TokenTree::from(Group::new(
+            Delimiter::Parenthesis,
+            pattern_tokens.into_iter().collect(),
+        )));
     } else {
         tokens.append(&mut pattern_tokens);
     }

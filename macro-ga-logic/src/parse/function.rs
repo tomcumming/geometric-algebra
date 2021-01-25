@@ -73,6 +73,8 @@ mod tests {
 
     use proc_macro2::TokenStream;
 
+    use symbolic_ga::basis::Vector;
+
     use super::*;
     use crate::{Element, Expr};
 
@@ -89,7 +91,7 @@ mod tests {
                 MVType(
                     vec![
                         Element(BTreeSet::new()),
-                        Element(vec![1, 2].into_iter().collect()),
+                        Element(vec![1, 2].into_iter().map(Vector).collect()),
                     ]
                     .into_iter()
                     .collect(),
@@ -99,8 +101,8 @@ mod tests {
                 "b".to_string(),
                 MVType(
                     vec![
-                        Element(std::iter::once(1).collect()),
-                        Element(std::iter::once(2).collect()),
+                        Element(std::iter::once(Vector(1)).collect()),
+                        Element(std::iter::once(Vector(2)).collect()),
                     ]
                     .into_iter()
                     .collect(),
