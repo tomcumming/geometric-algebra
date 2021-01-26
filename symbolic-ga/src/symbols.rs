@@ -51,7 +51,7 @@ impl std::ops::Add for Symbols {
 
 impl Symbols {
     fn add_scaled_power(mut self, scale: BigRational, power: SymbolPowers) -> Symbols {
-        let existing = self.0.remove(&power).unwrap_or(lift_integer(0));
+        let existing = self.0.remove(&power).unwrap_or_else(|| lift_integer(0));
         let sum = existing + scale;
         if !sum.is_zero() {
             self.0.insert(power, sum);
@@ -77,8 +77,6 @@ fn multiply_symbol_powers(lhs: &SymbolPowers, rhs: &SymbolPowers) -> SymbolPower
             prev
         })
 }
-
-/*
 
 #[cfg(test)]
 mod tests {
@@ -110,16 +108,22 @@ mod tests {
         // (2 + x) * (3 + xx) = 6 + 2xx + 3x + xxx
         let lhs = Symbols(
             vec![
-                (vec![("x".to_string(), 1)].into_iter().collect(), 1.0),
-                (BTreeMap::new(), 2.0),
+                (
+                    vec![("x".to_string(), 1)].into_iter().collect(),
+                    lift_integer(1),
+                ),
+                (BTreeMap::new(), lift_integer(2)),
             ]
             .into_iter()
             .collect(),
         );
         let rhs = Symbols(
             vec![
-                (vec![("x".to_string(), 2)].into_iter().collect(), 1.0),
-                (BTreeMap::new(), 3.0),
+                (
+                    vec![("x".to_string(), 2)].into_iter().collect(),
+                    lift_integer(1),
+                ),
+                (BTreeMap::new(), lift_integer(3)),
             ]
             .into_iter()
             .collect(),
@@ -127,10 +131,19 @@ mod tests {
 
         let expected = Symbols(
             vec![
-                (vec![("x".to_string(), 3)].into_iter().collect(), 1.0),
-                (vec![("x".to_string(), 2)].into_iter().collect(), 2.0),
-                (vec![("x".to_string(), 1)].into_iter().collect(), 3.0),
-                (BTreeMap::new(), 6.0),
+                (
+                    vec![("x".to_string(), 3)].into_iter().collect(),
+                    lift_integer(1),
+                ),
+                (
+                    vec![("x".to_string(), 2)].into_iter().collect(),
+                    lift_integer(2),
+                ),
+                (
+                    vec![("x".to_string(), 1)].into_iter().collect(),
+                    lift_integer(3),
+                ),
+                (BTreeMap::new(), lift_integer(6)),
             ]
             .into_iter()
             .collect(),
@@ -139,5 +152,3 @@ mod tests {
         assert_eq!(&lhs * &rhs, expected);
     }
 }
-
-*/
