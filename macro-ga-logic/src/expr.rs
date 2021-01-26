@@ -12,9 +12,14 @@ use symbolic_ga::symbols::{lift_integer, SymbolPowers, Symbols};
 use crate::tokens::tokenstream_push;
 use crate::{CodeBasis, Expr};
 
-pub fn simplify_expr(_basis: &CodeBasis, expr: &Expr) -> Result<MultiVector, String> {
+pub fn simplify_expr(basis: &CodeBasis, expr: &Expr) -> Result<MultiVector, String> {
     match expr {
         Expr::Constant(x) => Ok(mv_from_scalar(*x)),
+        Expr::Add(a, b) => {
+            let mv_a = simplify_expr(basis, a)?;
+            let mv_b = simplify_expr(basis, b)?;
+            Ok(mv_a + mv_b)
+        }
         _ => todo!(),
     }
 }
