@@ -9,7 +9,7 @@ pub struct MultiVector(pub BTreeMap<Element, Symbols>);
 
 impl MultiVector {
     pub fn multiply(&self, basis: &Basis, rhs: &MultiVector) -> Result<MultiVector, String> {
-        let mut result = MultiVector(BTreeMap::new());
+        let mut result = MultiVector::default();
 
         for (lhs_elem, lhs_sym) in self.0.iter() {
             for (rhs_elem, rhs_sym) in rhs.0.iter() {
@@ -32,12 +32,18 @@ impl MultiVector {
     }
 }
 
+impl std::default::Default for MultiVector {
+    fn default() -> MultiVector {
+        MultiVector(BTreeMap::new())
+    }
+}
+
 impl std::ops::Add for MultiVector {
     type Output = MultiVector;
 
     fn add(self, rhs: MultiVector) -> MultiVector {
         self.0.into_iter().chain(rhs.0.into_iter()).fold(
-            MultiVector(BTreeMap::new()),
+            MultiVector::default(),
             |mut prev, (elem, sym)| {
                 let existing = prev
                     .0

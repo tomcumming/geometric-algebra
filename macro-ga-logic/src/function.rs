@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use proc_macro2::{Delimiter, Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 
 use crate::expr::{mv_as_code, simplify_expr};
@@ -33,8 +35,10 @@ impl Function {
         tokens.extend(args_as_code(basis, &self.args));
         tokenstream_push(&mut tokens, Punct::new('|', Spacing::Alone).into());
 
-        let mv = simplify_expr(basis, &self.body)?;
-        tokens.extend(mv_as_code(&mv));
+        let sym_types: BTreeMap<String, MVType> = self.args.iter().cloned().collect();
+
+        let mv = simplify_expr(basis, &sym_types, &self.body)?;
+        tokens.extend(mv_as_code(basis, &mv));
 
         Ok(tokens)
     }
