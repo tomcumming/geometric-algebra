@@ -1,5 +1,6 @@
 use proc_macro2::{Delimiter, Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 
+use crate::expr::{mv_as_code, simplify_expr};
 use crate::tokens::tokenstream_push;
 use crate::types::{element_term_name, element_type_name, type_signiture};
 use crate::{CodeBasis, Expr, MVType};
@@ -26,18 +27,16 @@ impl Function {
         Ok(Function { args, body })
     }
 
-    pub fn as_code(&self, basis: &CodeBasis) -> TokenStream {
+    pub fn as_code(&self, basis: &CodeBasis) -> Result<TokenStream, String> {
         let mut tokens = TokenStream::new();
         tokenstream_push(&mut tokens, Punct::new('|', Spacing::Alone).into());
         tokens.extend(args_as_code(basis, &self.args));
         tokenstream_push(&mut tokens, Punct::new('|', Spacing::Alone).into());
 
-        tokenstream_push(
-            &mut tokens,
-            Group::new(Delimiter::Parenthesis, TokenStream::new()).into(),
-        );
+        let mv = simplify_expr(basis, &self.body)?;
+        tokens.extend(mv_as_code(&mv));
 
-        tokens
+        Ok(tokens)
     }
 }
 

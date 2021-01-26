@@ -44,5 +44,9 @@ pub fn function(token_stream: proc_macro::TokenStream) -> proc_macro::TokenStrea
     let pf =
         parse_function(&mut tokens).expect("There was a problem parsing the function inside ga!()");
 
-    proc_macro::TokenStream::from(pf.as_code(&basis))
+    let tokens = pf
+        .as_code(&basis)
+        .expect("There was a problem generating code for function inside ga!()");
+
+    proc_macro::TokenStream::from(tokens)
 }
