@@ -18,11 +18,11 @@ impl MultiVector {
                     (SquaredElement::Zero, _) => {}
                     (SquaredElement::One, es) => {
                         let rhs = MultiVector(vec![(es, sym)].into_iter().collect());
-                        result = result.add(rhs);
+                        result = result + rhs;
                     }
                     (SquaredElement::MinusOne, es) => {
                         let rhs = MultiVector(vec![(es, sym.invert())].into_iter().collect());
-                        result = result.add(rhs);
+                        result = result + rhs;
                     }
                 }
             }
@@ -30,8 +30,12 @@ impl MultiVector {
 
         Ok(result)
     }
+}
 
-    pub fn add(self, rhs: MultiVector) -> MultiVector {
+impl std::ops::Add for MultiVector {
+    type Output = MultiVector;
+
+    fn add(self, rhs: MultiVector) -> MultiVector {
         self.0.into_iter().chain(rhs.0.into_iter()).fold(
             MultiVector(BTreeMap::new()),
             |mut prev, (elem, sym)| {

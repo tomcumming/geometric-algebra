@@ -14,7 +14,7 @@ pub enum SimplifiedElement {
 }
 
 fn pop_first_vector(vs: &mut BTreeSet<Vector>) -> Option<Vector> {
-    let v = vs.iter().cloned().nth(0);
+    let v = vs.iter().cloned().next();
     v.and_then(|v| vs.take(&v))
 }
 
