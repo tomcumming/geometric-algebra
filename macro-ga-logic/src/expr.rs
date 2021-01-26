@@ -26,6 +26,11 @@ pub fn simplify_expr(
             let mv_b = simplify_expr(basis, sym_types, b)?;
             Ok(mv_a + mv_b)
         }
+        Expr::Mul(a, b) => {
+            let mv_a = simplify_expr(basis, sym_types, a)?;
+            let mv_b = simplify_expr(basis, sym_types, b)?;
+            mv_a.multiply(&basis.basis, &mv_b)
+        }
         _ => todo!("simplify expr"),
     }
 }
