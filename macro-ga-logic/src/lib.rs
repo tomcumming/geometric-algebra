@@ -26,6 +26,7 @@ pub enum Expr {
     Div(Box<Expr>, Box<Expr>),
 }
 
+#[derive(Debug, Clone)]
 pub struct CodeBasis {
     pub basis: Basis,
     pub scalar: String,

@@ -19,7 +19,7 @@ pub fn generate_types(basis: &CodeBasis) -> TokenStream {
             tokens.extend(scalar_def);
         } else {
             let src = format!(
-                "#[derive(Debug, Copy, Clone, PartialEq)]\nstruct {}({});",
+                "#[derive(Debug, Copy, Clone, PartialEq)]\nstruct {}(pub {});",
                 element_type_name(basis, &elem),
                 basis.scalar
             );

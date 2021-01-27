@@ -1,6 +1,6 @@
 use macro_ga;
 
-macro_ga::define_basis!(PGA3, 3, 0, 1);
+macro_ga::define_basis!(PGA3, f32, 3, 0, 1);
 
 macro_ga::basis_types!(PGA3);
 

@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct Basis {
     pub zero: usize,
     pub positive: usize,
