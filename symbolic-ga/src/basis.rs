@@ -26,3 +26,9 @@ impl Vector {
         }
     }
 }
+
+pub fn all_vectors(basis: &Basis) -> Vec<Vector> {
+    (0..basis.zero + basis.positive + basis.negative)
+        .map(Vector)
+        .collect()
+}

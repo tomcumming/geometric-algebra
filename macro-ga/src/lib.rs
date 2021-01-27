@@ -54,6 +54,33 @@ pub fn define_basis(token_stream: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
+pub fn basis_types(token_stream: TokenStream) -> TokenStream {
+    let mut tokens = token_stream.into_iter();
+
+    let basis = match tokens.next() {
+        Some(TokenTree::Ident(basis_name)) => {
+            let (positive, negative, zero) = use_global_basis(|bs| {
+                *bs.get(&basis_name.to_string())
+                    .expect("Basis name was not registered, use define_basis!(...)")
+            });
+            symbolic_ga::basis::Basis {
+                positive,
+                negative,
+                zero,
+            }
+        }
+        _ => panic!("Basis name not specified in basis_types!(...)"),
+    };
+
+    let basis = macro_ga_logic::CodeBasis {
+        scalar: "f32".to_string(),
+        basis,
+    };
+
+    TokenStream::from(macro_ga_logic::structs::generate_types(&basis))
+}
+
+#[proc_macro]
 pub fn ga(token_stream: TokenStream) -> TokenStream {
     function::function(token_stream)
 }

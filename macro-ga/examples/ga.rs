@@ -1,15 +1,8 @@
 use macro_ga;
 
-macro_ga::define_basis!(PGA2, 2, 0, 1);
 macro_ga::define_basis!(PGA3, 3, 0, 1);
 
-// These bits will get generated soon
-#[derive(Debug)]
-struct E1(f32);
-#[derive(Debug)]
-struct E2(f32);
-#[derive(Debug)]
-struct E1E2E3(f32);
+macro_ga::basis_types!(PGA3);
 
 fn main() {
     let f = macro_ga::ga! ( PGA3, |a: e1 + e2, b: 1| a * a + b );

@@ -1,6 +1,7 @@
 pub mod expr;
 pub mod function;
 pub mod parse;
+pub mod structs;
 mod tokens;
 pub mod types;
 
