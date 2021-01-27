@@ -1,12 +1,12 @@
 use proc_macro2::TokenTree;
 
-use crate::function::Function;
+use crate::lambda::Lambda;
 use crate::parse::expr::parse_expression;
 use crate::parse::mvtype::parse_type;
 use crate::parse::Tokens;
 use crate::MVType;
 
-pub fn parse_function(tokens: &mut Tokens) -> Result<Function, String> {
+pub fn parse_lambda(tokens: &mut Tokens) -> Result<Lambda, String> {
     match tokens.next() {
         Some(TokenTree::Punct(p)) if p.as_char() == '|' => {}
         token => {
@@ -20,7 +20,7 @@ pub fn parse_function(tokens: &mut Tokens) -> Result<Function, String> {
     let args = parse_args(tokens)?;
     let body = parse_expression(tokens)?;
 
-    Function::new(args, body)
+    Lambda::new(args, body)
 }
 
 fn parse_args(tokens: &mut Tokens) -> Result<Vec<(String, MVType)>, String> {
@@ -115,7 +115,7 @@ mod tests {
             Box::new(Expr::Symbol("b".to_string())),
         );
 
-        let f = parse_function(&mut tokens).unwrap();
+        let f = parse_lambda(&mut tokens).unwrap();
 
         assert_eq!(f.args(), &expected_args);
         assert_eq!(f.body(), &expected_body);

@@ -1,5 +1,5 @@
 pub mod expr;
-pub mod function;
+pub mod lambda;
 pub mod parse;
 pub mod structs;
 mod tokens;

@@ -1,6 +1,6 @@
 pub mod element;
 pub mod expr;
-pub mod function;
+pub mod lambda;
 pub mod mvtype;
 
 use std::iter::Peekable;

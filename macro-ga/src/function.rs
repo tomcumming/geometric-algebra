@@ -1,6 +1,6 @@
 use proc_macro2::TokenTree;
 
-use macro_ga_logic::parse::function::parse_function;
+use macro_ga_logic::parse::lambda::parse_lambda;
 
 use crate::use_global_basis;
 
@@ -29,7 +29,7 @@ pub fn function(token_stream: proc_macro::TokenStream) -> proc_macro::TokenStrea
     };
 
     let pf =
-        parse_function(&mut tokens).expect("There was a problem parsing the function inside ga!()");
+        parse_lambda(&mut tokens).expect("There was a problem parsing the function inside ga!()");
 
     let tokens = pf
         .as_code(&basis)

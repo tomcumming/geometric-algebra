@@ -7,12 +7,12 @@ use crate::tokens::tokenstream_push;
 use crate::types::{element_term_name, element_type_name, type_signiture};
 use crate::{CodeBasis, Expr, MVType};
 
-pub struct Function {
+pub struct Lambda {
     args: Vec<(String, MVType)>,
     body: Expr,
 }
 
-impl Function {
+impl Lambda {
     pub fn args(&self) -> &Vec<(String, MVType)> {
         &self.args
     }
@@ -21,12 +21,12 @@ impl Function {
         &self.body
     }
 
-    pub fn new(args: Vec<(String, MVType)>, body: Expr) -> Result<Function, String> {
+    pub fn new(args: Vec<(String, MVType)>, body: Expr) -> Result<Lambda, String> {
         // TODO check arg names are valid and unique
         //      Must not conflict with suffixed names
         // TODO check expression in valid in ctx
 
-        Ok(Function { args, body })
+        Ok(Lambda { args, body })
     }
 
     pub fn as_code(&self, basis: &CodeBasis) -> Result<TokenStream, String> {
