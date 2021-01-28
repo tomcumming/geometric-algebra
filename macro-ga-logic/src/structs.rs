@@ -2,15 +2,13 @@ use std::str::FromStr;
 
 use proc_macro2::TokenStream;
 
-use symbolic_ga::element::all_elements;
-
 use crate::types::element_type_name;
 use crate::CodeBasis;
 
 pub fn generate_types(basis: &CodeBasis) -> TokenStream {
     let mut tokens = TokenStream::new();
 
-    let elems = all_elements(&basis.basis);
+    let elems = basis.basis.elements();
 
     for elem in elems {
         if elem.0.is_empty() {

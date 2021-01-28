@@ -1,9 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
-use itertools::Itertools;
-
-use crate::basis::{all_vectors, Basis, SquaredElement, Vector};
+use crate::basis::{Basis, SquaredElement, Vector};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct Element(pub BTreeSet<Vector>);
@@ -13,14 +11,6 @@ pub enum SimplifiedElement {
     Zero,
     Positive(Element),
     Negative(Element),
-}
-
-pub fn all_elements(basis: &Basis) -> Vec<Element> {
-    all_vectors(basis)
-        .into_iter()
-        .powerset()
-        .map(|vs| Element(vs.into_iter().collect()))
-        .collect()
 }
 
 fn pop_first_vector(vs: &mut BTreeSet<Vector>) -> Option<Vector> {
@@ -137,12 +127,6 @@ mod tests {
         negative: 1,
     };
 
-    const PGA2: Basis = Basis {
-        zero: 1,
-        positive: 2,
-        negative: 0,
-    };
-
     #[test]
     fn test_bivector_squares_to_minus_one() -> Result<(), String> {
         let e1 = Vector(1);
@@ -178,22 +162,5 @@ mod tests {
             }
             _ => Err("Could not construct bivectors".to_string()),
         }
-    }
-
-    #[test]
-    fn test_all_elements_for_pga2d() {
-        let elems = all_elements(&PGA2);
-        let expected: Vec<Element> = vec![
-            Element(BTreeSet::new()),
-            Element(vec![Vector(0)].into_iter().collect()),
-            Element(vec![Vector(1)].into_iter().collect()),
-            Element(vec![Vector(2)].into_iter().collect()),
-            Element(vec![Vector(0), Vector(1)].into_iter().collect()),
-            Element(vec![Vector(0), Vector(2)].into_iter().collect()),
-            Element(vec![Vector(1), Vector(2)].into_iter().collect()),
-            Element(vec![Vector(0), Vector(1), Vector(2)].into_iter().collect()),
-        ];
-
-        assert_eq!(elems, expected);
     }
 }
