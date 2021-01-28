@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
-use crate::basis::{Basis, SquaredElement};
+use crate::basis::{Basis, Grade, SquaredElement};
 use crate::element::Element;
 use crate::symbols::Symbols;
 
@@ -29,6 +30,17 @@ impl MultiVector {
         }
 
         Ok(result)
+    }
+
+    pub fn project(&self, basis: &Basis, grades: &BTreeSet<Grade>) -> MultiVector {
+        let elements: BTreeSet<Element> = grades.iter().flat_map(|g| basis.grade(*g)).collect();
+        MultiVector(
+            self.0
+                .iter()
+                .filter(|(el, _syms)| elements.contains(el))
+                .map(|(el, syms)| (el.clone(), syms.clone()))
+                .collect(),
+        )
     }
 }
 

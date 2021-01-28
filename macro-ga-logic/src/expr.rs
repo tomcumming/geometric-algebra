@@ -31,6 +31,9 @@ pub fn simplify_expr(
             let mv_b = simplify_expr(basis, sym_types, b)?;
             mv_a.multiply(&basis.basis, &mv_b)
         }
+        Expr::Grade(expr, grades) => {
+            simplify_expr(basis, sym_types, expr).map(|mv| mv.project(&basis.basis, grades))
+        }
         _ => todo!("simplify expr"),
     }
 }
