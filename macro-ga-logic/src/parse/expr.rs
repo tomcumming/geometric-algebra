@@ -1,8 +1,12 @@
+use std::collections::BTreeSet;
 use std::str::FromStr;
 
 use proc_macro2::{Delimiter, TokenTree};
 
+use symbolic_ga::basis::Grade;
+
 use crate::parse::element::try_parse_element;
+use crate::parse::function;
 use crate::parse::Tokens;
 use crate::Expr;
 
@@ -12,10 +16,33 @@ fn parse_constant(literal: String) -> Result<Expr, String> {
     Ok(Expr::Constant(parsed))
 }
 
-fn parse_ident(name: String) -> Expr {
-    try_parse_element(&name)
-        .map(Expr::Element)
-        .unwrap_or(Expr::Symbol(name))
+fn parse_ident(tokens: &mut Tokens, name: String) -> Result<Expr, String> {
+    match name.as_str() {
+        "grade" => {
+            let args = function::parse_args(tokens)?;
+            let body = args.get(0).ok_or("No body parsed to grade function")?;
+
+            let mut grades: BTreeSet<Grade> = BTreeSet::new();
+            for grade_expr in &args[1..] {
+                match grade_expr {
+                    Expr::Constant(x) if *x >= 0 => {
+                        grades.insert(*x as usize);
+                    }
+                    expr => {
+                        return Err(format!(
+                            "grade function requires constant grades, given '{:?}'",
+                            expr
+                        ))
+                    }
+                }
+            }
+
+            Ok(Expr::Grade(Box::new(body.clone()), grades))
+        }
+        _ => Ok(try_parse_element(&name)
+            .map(Expr::Element)
+            .unwrap_or(Expr::Symbol(name))),
+    }
 }
 
 pub fn parse_operand(tokens: &mut Tokens) -> Result<Expr, String> {
@@ -23,7 +50,7 @@ pub fn parse_operand(tokens: &mut Tokens) -> Result<Expr, String> {
 
     match next_token {
         TokenTree::Literal(l) => parse_constant(l.to_string()),
-        TokenTree::Ident(i) => Ok(parse_ident(i.to_string())),
+        TokenTree::Ident(i) => parse_ident(tokens, i.to_string()),
         TokenTree::Punct(p) if p.as_char() == '-' => {
             let e = parse_operand(tokens)?;
             Ok(Expr::Negate(Box::new(e)))
@@ -312,6 +339,26 @@ mod tests {
                     Box::new(Expr::Constant(2))
                 )),
                 Box::new(Expr::Constant(3)),
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_grade_function() {
+        let mut tokens = TokenStream::from_str("grade(e1 + e1e2, 2)")
+            .unwrap()
+            .into_iter()
+            .peekable();
+
+        let e: Expr = parse_expression(&mut tokens).unwrap().into();
+        assert_eq!(
+            e,
+            Expr::Grade(
+                Box::new(Expr::Add(
+                    Box::new(Expr::Element(vec![Vector(1)])),
+                    Box::new(Expr::Element(vec![Vector(1), Vector(2)])),
+                )),
+                vec![2].into_iter().collect()
             )
         );
     }

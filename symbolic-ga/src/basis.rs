@@ -16,6 +16,8 @@ pub enum SquaredElement {
     MinusOne,
 }
 
+pub type Grade = usize;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Vector(pub usize);
 
@@ -39,7 +41,7 @@ impl Basis {
             .collect()
     }
 
-    pub fn grade(&self, n: usize) -> Vec<Element> {
+    pub fn grade(&self, n: Grade) -> Vec<Element> {
         combinations(&self.vectors(), n)
             .into_iter()
             .map(Element)
